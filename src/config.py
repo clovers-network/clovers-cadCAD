@@ -28,11 +28,13 @@ rarity = {
     'hasSymmetry': 0.0001, # 1/10000 clovers are symmetrical, derived from 
     'claimRate':   0.01,
     'pretty':      0.01, # 1/100 clovers are "pretty"
-    'rotSym':      0.03834510595358224,
-    'x0Sym':       0.1099899091826438,
-    'xySym':       0.3834510595358224,
-    'xnySym':      0.44601412714429867,
-    'diagRotSym':  0.014127144298688193,
-    'perpRotSym':  0.004036326942482341,
-    'allSym':      0.004036326942482341
+    'symmetries': {
+        'rotSym':      0.03834510595358224,
+        'x0Sym':       0.1099899091826438,
+        'xySym':       0.3834510595358224,
+        'xnySym':      0.44601412714429867,
+        'diagRotSym':  0.014127144298688193,
+        'perpRotSym':  0.004036326942482341,
+        'allSym':      0.004036326942482341
+    }
 }
