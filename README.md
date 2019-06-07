@@ -4,4 +4,7 @@
 
 To copy from jupyterhub server:
 
-`!tar chvfz notebook.tar.gz *`
+```
+source .env
+python pull.py
+```
