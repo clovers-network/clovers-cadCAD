@@ -1,62 +1,42 @@
 from numpy.random import rand
+import numpy
 from config import rarity, market_settings
-from utils import createCombinationRarities
-
-combination_rarities = createCombinationRarities(rarity)
-
-combination_rarities
+import math
+import utils
+import networkx as nx
 
 
-def getClaim(s):
+
+def getClaim():
+    
     return rand() < rarity['claimRate']
 
-def getReward(s, rewards):
-    if not rewards['symms']:
+def getReward(s, clover):
+    if not clover['symms']:
         return 0
     totalRewards = 0
-    allSymmetries = s['rotSym'] + s['y0Sym'] + s['x0Sym'] + s['xySym'] + s['xnySym']
-    if rewards['rotSym']:
-        totalRewards = market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if rewards['y0Sym']:
-        totalRewards = market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if rewards['x0Sym']:
-        totalRewards = market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if rewards['xySym']:
-        totalRewards = market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if rewards['xnySym']:
-        totalRewards = market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    allSymmetries = numpy.sum([s['rotSym'], s['y0Sym'], s['x0Sym'], s['xySym'], s['xnySym']])
+    if clover['rotSym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['y0Sym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['x0Sym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['xySym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['xnySym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
     return totalRewards
 
-def mine_clover():
-    rands = {
-        'rotSym': rand(),
-        'y0Sym': rand(),
-        'x0Sym': rand(),
-        'xySym': rand(),
-        'xnySym': rand()
-    }
-    
-    clover = {}
 
-    clover['rotSym'] = 1 if (rands['rotSym'] < rarity['rotSym']) else 0
-    clover['y0Sym'] = 1 if rands['y0Sym'] < rarity['y0Sym'] else 0
-    clover['x0Sym'] = 1 if rands['x0Sym'] < rarity['x0Sym'] else 0
-    clover['xySym'] = 1 if rands['xySym'] < rarity['xySym'] else 0
-    clover['xnySym'] = 1 if rands['xnySym'] < rarity['xnySym'] else 0
-        
-    clover['symms'] = (clover['rotSym'] + clover['y0Sym'] + clover['x0Sym'] + clover['xySym'] + clover['xnySym']) > 0
-
-    return clover
-
-
+# mines n clovers, and returns only the rare ones, with rarity
 def mine_clovers(num_clovers):
     possibleSyms = ['rotSym', 'y0Sym', 'x0Sym', 'xySym', 'xnySym']
-
     rare_clovers = num_clovers*rarity['hasSymmetry']
-    rare_clovers = (1 if rand() < (rare_clovers % math.floor(rare_clovers)) else 0) + math.floor(rare_clovers)
+    rare_clovers = (1 if rand() < (rare_clovers - math.floor(rare_clovers)) else 0) + math.floor(rare_clovers)
     
     clovers = []
-    for i in range(1,rare_clovers-1):
+    for i in range(1,rare_clovers+1):
         
         clover = {}
 
@@ -65,7 +45,7 @@ def mine_clovers(num_clovers):
         for sym in possibleSyms:
             clover[sym] = False
     
-        if possibleSyms.contains(symmetry):
+        if symmetry in possibleSyms:
             clover[symmetry] = True
         else:
             if sym == 'diagRotSym':
@@ -76,39 +56,89 @@ def mine_clovers(num_clovers):
                 for sym in possibleSyms:
                     clover[sym] = True
         
+        clover['pretty'] = (rand() < rarity['rarePretty'])
         clover['symms'] = True
         
-        clovers[i] = clover
+        clovers.append(clover)
     
     return clovers
 
 
 def player_policy(params, step, sL, s):
-    # mine the clover
-    rare_clovers = mine_clovers(1)
-    # calculate potential rewards for clover
-    # CHANGE THIS FROM HERE ==== mine_clovers returns an array of rare clovers, not a single non-rare or rare clover
-    rewardAmount = getReward(s, clover)
     
-    claim = getClaim(s)
-    payAmount = (rewardAmount + market_settings['base-price']) * market_settings['priceMultiplier']
-
-    # if the cost to buy is larger than the total user based supply (non-bank owned) there is no possible user
-    # with enough club token to buy it
-    if payAmount > s['bc-totalSupply']:
-        claim = False
-    if claim:
-        totalSupply = s['bc-totalSupply'] - payAmount
-    else:
-        totalSupply = s['bc-totalSupply'] + rewardAmount
+    # mine the clover
+    # player_settings = params['player_mining']
+    params = params[0]
+    
+    player_intentions = {}
+    
+    # iterate through players in a given timestep period and their individual logics
+    for node in utils.get_nodes_by_type(s['network'], 'player'):
         
-    return ({
-        'rands': rands,
-        'rewards': rewards,
-        'rewardAmount': rewardAmount,
-        'payAmount': payAmount,
-        'claim': claim
-    })
+        player = s['network'].nodes[node]
+        
+        # is the player active in this timestep (probabalistic function)
+        if params['player_active']():
+            
+            # number of hashes calcuated by this player during the period
+            num_hashes = player['hashrate'] \
+                         * (params['duration']*60) \
+                         * player['player_active_percent']
+            
+            # returns an array of al rare clovers mined during the period
+            rare_clovers = mine_clovers(num_hashes)
+            
+            # PLACEHOLDER: add function for generating non-sym pretty clovers via UI
+            
+            # number of clovers this user will keep & sell during the time period
+            clovers_to_keep = []
+            clovers_to_sell = []            
+            
+            
+            for clover in rare_clovers:
+                
+                if clover['pretty']:
+                    # with each additional clover kept, reduce the probability
+                    # of a player choosing to keep another pretty clover
+                    if (rand() < (1 / 1 + len(clovers_to_keep))):
+                        clovers_to_keep.append(clover)
+                else:
+                    clovers_to_sell.append(clover)
+                        
+            player_intentions[node] = {
+                'clovers_to_sell': clovers_to_sell,
+                'clovers_to_keep': clovers_to_keep
+            }
+    
+    return {'player_intentions': player_intentions}
+    
+    # if rare_clovers:
+    #     clover = rare_clovers[0]
+    #     # calculate potential rewards for clover
+    #     rewardAmount = getReward(s, clover)
+    #     
+    #     claim = getClaim()
+    #     payAmount = (rewardAmount + market_settings['base-price']) * market_settings['priceMultiplier']
+    # 
+    #     # if the cost to buy is larger than the total user based supply (non-bank owned) there is no possible user
+    #     # with enough club token to buy it
+    #     if payAmount > s['bc-totalSupply']:
+    #         claim = False
+    #     if claim:
+    #         totalSupply = s['bc-totalSupply'] - payAmount
+    #     else:
+    #         totalSupply = s['bc-totalSupply'] + rewardAmount
+    #         
+    #     return ({
+    #         'rewards': clover,
+    #         'rewardAmount': rewardAmount,
+    #         'payAmount': payAmount,
+    #         'claim': claim,
+    #         'userClovers': rare_clovers
+    #     })
+    # 
+    # 
+    # return ({'claim': False, 'rewardAmount': 0, 'rewards': {'x0Sym': False, 'y0Sym': False, 'xySym': False, 'xnySym': False, 'rotSym': False, 'symms': False}})
 
     
 

@@ -22,12 +22,14 @@ initial_conditions = {
     'x0Sym': 0,              # total x = 0 symmetries
     'xySym': 0,              # total x = y symmetries
     'xnySym': 0,             # total x = -y symmetries
+    'userClovers': []        # number of clovers owned by users
 }
 
 rarity = {
     'hasSymmetry': 0.0001, # 1/10000 clovers are symmetrical, derived from 
     'claimRate':   0.01,
     'pretty':      0.01, # 1/100 clovers are "pretty"
+    'rarePretty':  0.3, # 30/100 rare clovers are "pretty"k
     'symmetries': {
         'rotSym':      0.03834510595358224,
         'x0Sym':       0.1099899091826438,

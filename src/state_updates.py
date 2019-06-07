@@ -1,3 +1,5 @@
+import utils
+from config import market_settings
 
 # State update functions
 def bc_totalSupply(params, step, sL, s, _input):
@@ -16,6 +18,10 @@ def bankClovers(params, step, sL, s, _input):
     if _input['claim']:
         add = 1
     return ('bankClovers', add + s['bankClovers'])
+
+def userClovers(params, step, sL, s, _input):
+    clovers_to_keep = _input['userClovers']
+    return ('userClovers', s['userClovers'] + clovers_to_keep)
     
 def symms(params, step, sL, s, _input):
     if _input['rewards']['symms']:
@@ -43,3 +49,33 @@ def xnySym(params, step, sL, s, _input):
 
 def cloversForSale(params, step, sL, s, _input):
     return ('cloversForSale', s['cloversForSale'])
+
+
+def update_network(params, step, sL, s, _input):
+    g = s['network']
+    
+    player_intentions = _input['player_intentions']
+    bank = utils.get_nodes_by_type(g, "bank")[0]
+
+    
+    for player, intentions in player_intentions.items():
+        
+        for clover in intentions['clovers_to_sell']:
+            (g, nodeId) = utils.add_clover_to_network(g, clover)
+            g.add_edge(bank, nodeId)
+            g.edges[(bank, nodeId)]['type'] = "owns"
+            g.nodes[player]['supply'] += utils.getCloverReward(s, clover, market_settings)
+        
+        for clover in intentions['clovers_to_keep']:
+            (g, nodeId) = utils.add_clover_to_network(g, clover)
+            g.add_edge(player, nodeId)
+            g.edges[(player, nodeId)]['type'] = "owns"
+            g.nodes[player]['supply'] -= utils.getCloverPrice(s, clover, market_settings)
+        
+    return ('network', g)
+            
+            
+            
+        
+        
+    

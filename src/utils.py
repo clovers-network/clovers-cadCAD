@@ -1,5 +1,10 @@
 from itertools import *
+from numpy.random import rand
 import numpy
+from scipy.stats import norm
+import networkx as nx
+
+
 
 def initialize(market_settings, conditions):
     
@@ -8,9 +13,49 @@ def initialize(market_settings, conditions):
     
     conditions['bc-balance'] = market_settings["initialSpend"]
     conditions['bc-totalSupply'] = init_ts(conditions)
+    conditions['network'] = initialize_network(20, 3)
     
     return conditions
 
+
+def initialize_network(n, m):
+    network = nx.DiGraph()
+    for i in range(n):
+        network.add_node(i)
+        network.nodes[i]['type'] = "player"
+        
+        # randomize player's hashrate on
+        # a normal distribution centered on 15, stddev=2
+        network.nodes[i]['hashrate'] = norm.rvs(loc=15, scale=2)
+        network.nodes[i]['player_active_percent'] = 0.7
+        network.nodes[i]['supply'] = 0
+        network.nodes[i]['eth-spent'] = 0
+                
+        
+    for j in range(n,n+m):
+        network.add_node(j)
+        network.nodes[j]['type'] = "miner"
+    
+    network.add_node(n + m)
+    network.nodes[n+m]['type'] = "bank"
+        
+    return network
+
+#helper functions
+def get_nodes_by_type(g, node_type_selection):
+    
+    return [node for node in g.nodes if g.nodes[node]['type']== node_type_selection ]
+
+def get_edges_by_type(g, edge_type_selection):
+    return [edge for edge in g.edges if g.edges[edge]['type']== edge_type_selection ]
+
+def add_clover_to_network(g, clover):
+    nodeId = len(g.nodes)
+    g.add_node(nodeId)
+    g.nodes[nodeId]['type'] = 'clover'
+    for attr in clover.keys():
+        g.nodes[nodeId][attr] = clover[attr]
+    return (g, nodeId)
 
 def calculatePurchaseReturn(tokenSupply, collateral, CW, amount):
     return tokenSupply * ((1 + amount / collateral)**CW-1)
@@ -21,6 +66,28 @@ def calculateSellReturn(tokenSupply, collateral, CW, amount):
 def calculateCurrentPrice(tokenSupply, collateral, CW):
     return collateral / (tokenSupply * CW)
 
+# SHOULD UPDATE s TO BE TAKING NETWORK AS AN INPUT, FILTERING BY CLOVER NODES
+def getCloverReward(s, clover, market_settings):
+    if not clover['symms']:
+        return 0
+    totalRewards = 0
+    allSymmetries = numpy.sum([s['rotSym'], s['y0Sym'], s['x0Sym'], s['xySym'], s['xnySym']])
+    if clover['rotSym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['y0Sym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['x0Sym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['xySym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    if clover['xnySym']:
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+    return totalRewards
+
+def getCloverPrice(s, clover, market_settings):
+    rewardAmount = getCloverReward(s, clover, market_settings)
+    payAmount = (rewardAmount + market_settings['base-price']) * market_settings['priceMultiplier']
+    return payAmount
 
 def getSymmetry(symmetryRarities):
     rand_val = rand()
@@ -29,7 +96,7 @@ def getSymmetry(symmetryRarities):
         if rand_val <= numpy.sum(list(symmetryRarities.values())[0:i]):
             break;
     
-    return list(syms.keys())[i-1]
+    return list(symmetryRarities.keys())[i-1]
 
 #def interpretCombinations(combinationTuple):
 #    switcher = {
