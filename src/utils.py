@@ -57,6 +57,21 @@ def add_clover_to_network(g, clover):
         g.nodes[nodeId][attr] = clover[attr]
     return (g, nodeId)
 
+def owner_type(g, cloverId):
+    return g.nodes[cloverId]['owner_type']
+
+def get_owner(g, cloverId):
+    # this could be made safer, to check for multiple
+    # owners and return error if multiple owners exist
+    # also, we should throw exception if no owner found
+    for owner in g.predecessors(cloverId):
+        return owner  
+
+def set_owner(g, ownerId, cloverId):
+    g.add_edge(ownerId, cloverId)
+    g.edges[(ownerId, cloverId)]['type'] = "ownership"
+    g.nodes[cloverId]['owner_type'] = g.nodes[ownerId]['type']
+    
 def calculatePurchaseReturn(tokenSupply, collateral, CW, amount):
     return tokenSupply * ((1 + amount / collateral)**CW-1)
 
@@ -68,20 +83,21 @@ def calculateCurrentPrice(tokenSupply, collateral, CW):
 
 # SHOULD UPDATE s TO BE TAKING NETWORK AS AN INPUT, FILTERING BY CLOVER NODES
 def getCloverReward(s, clover, market_settings):
-    if not clover['symms']:
+    if not clover['hasSymmetry']:
         return 0
     totalRewards = 0
-    allSymmetries = numpy.sum([s['rotSym'], s['y0Sym'], s['x0Sym'], s['xySym'], s['xnySym']])
+    syms = s['symmetries']
+    allSymms = numpy.sum([syms['rotSym'], syms['y0Sym'], syms['x0Sym'], syms['xySym'], syms['xnySym']])
     if clover['rotSym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / 2
     if clover['y0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / 2
     if clover['x0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / 2
     if clover['xySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / 2
     if clover['xnySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
+        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / 2
     return totalRewards
 
 def getCloverPrice(s, clover, market_settings):

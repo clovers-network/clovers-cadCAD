@@ -16,13 +16,14 @@ initial_conditions = {
     'bc-totalSupply': 0,     # clubToken totalSupply
     'bankClovers': 0,        # total clovers owned by Bank
     'clovers': 0,            # total number of clovers
-    'symms': 0,              # total number of symmetrical clovers
-    'rotSym': 0,             # total rotational symmetries
-    'y0Sym': 0,              # total y = 0 symmetries
-    'x0Sym': 0,              # total x = 0 symmetries
-    'xySym': 0,              # total x = y symmetries
-    'xnySym': 0,             # total x = -y symmetries
-    'userClovers': []        # number of clovers owned by users
+    'symmetries': {
+        'hasSymmetry': 0,        # total number of symmetrical clovers
+        'rotSym': 0,             # total rotational symmetries
+        'y0Sym': 0,              # total y = 0 symmetries
+        'x0Sym': 0,              # total x = 0 symmetries
+        'xySym': 0,              # total x = y symmetries
+        'xnySym': 0,             # total x = -y symmetries
+    }
 }
 
 rarity = {
@@ -31,12 +32,23 @@ rarity = {
     'pretty':      0.01, # 1/100 clovers are "pretty"
     'rarePretty':  0.3, # 30/100 rare clovers are "pretty"k
     'symmetries': {
-        'rotSym':      0.03834510595358224,
-        'x0Sym':       0.1099899091826438,
-        'xySym':       0.3834510595358224,
-        'xnySym':      0.44601412714429867,
-        'diagRotSym':  0.014127144298688193,
-        'perpRotSym':  0.004036326942482341,
-        'allSym':      0.004036326942482341
+        'rotSym':      39/1130,
+        'x0Sym':       112/1130,
+        'y0Sym':       113/1130,
+        'xySym':       394/1130,
+        'xnySym':      450/1130,
+        'diagRotSym':  13/1130,
+        'perpRotSym':  4/1130,
+        'allSym':      4/1130
+        # DATA FOR CALCULATING RARITIES:
+        # total symms: 1130
+        # total rot: 61 - 4 - 14 - 4 = 39
+        # total x0Sym: 120 - 4 - 4 = 112
+        # total y0Sym: 121 - 4 - 4 = 113
+        # total xySym: 412 - 14 - 4 = 394
+        # total xnySym: 468 - 14 - 4 = 450
+        # total diagRotSym: 18 - 4 = 14
+        # total perpRotSym: 8 - 4 = 4
+        # total allSym: 4
     }
 }

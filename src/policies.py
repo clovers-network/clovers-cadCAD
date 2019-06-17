@@ -8,26 +8,7 @@ import networkx as nx
 
 
 def getClaim():
-    
     return rand() < rarity['claimRate']
-
-def getReward(s, clover):
-    if not clover['symms']:
-        return 0
-    totalRewards = 0
-    allSymmetries = numpy.sum([s['rotSym'], s['y0Sym'], s['x0Sym'], s['xySym'], s['xnySym']])
-    if clover['rotSym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if clover['y0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if clover['x0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if clover['xySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    if clover['xnySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymmetries) / 2
-    return totalRewards
-
 
 # mines n clovers, and returns only the rare ones, with rarity
 def mine_clovers(num_clovers):
@@ -57,7 +38,7 @@ def mine_clovers(num_clovers):
                     clover[sym] = True
         
         clover['pretty'] = (rand() < rarity['rarePretty'])
-        clover['symms'] = True
+        clover['hasSymmetry'] = True
         
         clovers.append(clover)
     
@@ -66,8 +47,6 @@ def mine_clovers(num_clovers):
 
 def player_policy(params, step, sL, s):
     
-    # mine the clover
-    # player_settings = params['player_mining']
     params = params[0]
     
     player_intentions = {}
@@ -85,11 +64,10 @@ def player_policy(params, step, sL, s):
                          * (params['duration']*60) \
                          * player['player_active_percent']
             
-            # returns an array of al rare clovers mined during the period
+            # returns an array of all rare clovers mined during the period
             rare_clovers = mine_clovers(num_hashes)
             
             # PLACEHOLDER: add function for generating non-sym pretty clovers via UI
-            
             # number of clovers this user will keep & sell during the time period
             clovers_to_keep = []
             clovers_to_sell = []            
