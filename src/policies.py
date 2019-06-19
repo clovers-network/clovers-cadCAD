@@ -11,13 +11,19 @@ def getClaim():
     return rand() < rarity['claimRate']
 
 # mines n clovers, and returns only the rare ones, with rarity
-def mine_clovers(num_clovers):
+def mine_clovers(num_hashes):
     possibleSyms = ['rotSym', 'y0Sym', 'x0Sym', 'xySym', 'xnySym']
-    rare_clovers = num_clovers*rarity['hasSymmetry']
+    
+    
+    # first determine how many rare clovers are found with the given hashrate
+    rare_clovers = num_hashes*rarity['hasSymmetry']
     rare_clovers = (1 if rand() < (rare_clovers - math.floor(rare_clovers)) else 0) + math.floor(rare_clovers)
     
     clovers = []
-    for i in range(1,rare_clovers+1):
+    
+    # for each rare clover, determine its symmetries and prettiness from utility function
+    # and return them as an array 
+    for i in range(rare_clovers):
         
         clover = {}
 
@@ -50,6 +56,7 @@ def player_policy(params, step, sL, s):
     params = params[0]
     
     player_intentions = {}
+    clover_intentions = []
     
     # iterate through players in a given timestep period and their individual logics
     for node in utils.get_nodes_by_type(s['network'], 'player'):
@@ -68,65 +75,91 @@ def player_policy(params, step, sL, s):
             rare_clovers = mine_clovers(num_hashes)
             
             # PLACEHOLDER: add function for generating non-sym pretty clovers via UI
-            # number of clovers this user will keep & sell during the time period
-            clovers_to_keep = []
-            clovers_to_sell = []            
-            
             
             for clover in rare_clovers:
+                
+                clover_intention = {"user": node, "clover": clover}
                 
                 if clover['pretty']:
                     # with each additional clover kept, reduce the probability
                     # of a player choosing to keep another pretty clover
                     if (rand() < (1 / 1 + len(clovers_to_keep))):
-                        clovers_to_keep.append(clover)
+                        clover_intention['intention'] = "keep"
+                    else:
+                        clover_intention['intention'] = "sell"
                 else:
-                    clovers_to_sell.append(clover)
+                    clover_intention['intention'] = "sell"
                         
-            player_intentions[node] = {
-                'clovers_to_sell': clovers_to_sell,
-                'clovers_to_keep': clovers_to_keep
-            }
+                clover_intentions.append(clover_intention)
     
-    return {'player_intentions': player_intentions}
-    
-    # if rare_clovers:
-    #     clover = rare_clovers[0]
-    #     # calculate potential rewards for clover
-    #     rewardAmount = getReward(s, clover)
-    #     
-    #     claim = getClaim()
-    #     payAmount = (rewardAmount + market_settings['base-price']) * market_settings['priceMultiplier']
-    # 
-    #     # if the cost to buy is larger than the total user based supply (non-bank owned) there is no possible user
-    #     # with enough club token to buy it
-    #     if payAmount > s['bc-totalSupply']:
-    #         claim = False
-    #     if claim:
-    #         totalSupply = s['bc-totalSupply'] - payAmount
-    #     else:
-    #         totalSupply = s['bc-totalSupply'] + rewardAmount
-    #         
-    #     return ({
-    #         'rewards': clover,
-    #         'rewardAmount': rewardAmount,
-    #         'payAmount': payAmount,
-    #         'claim': claim,
-    #         'userClovers': rare_clovers
-    #     })
-    # 
-    # 
-    # return ({'claim': False, 'rewardAmount': 0, 'rewards': {'x0Sym': False, 'y0Sym': False, 'xySym': False, 'xnySym': False, 'rotSym': False, 'symms': False}})
-
+    return {'clover_intentions': clover_intentions}
     
 
 def miner_policy(params, step, sL, s):
-    hash_rate = 15 # clovers per second
     
-    miner_pool = 3 # number of miners
+    clover_intentions = []
     
-    miner_pct_online = 0.3
+    for node in utils.get_nodes_by_type(s['network'], 'miner'):
+        miner = s['network'].nodes[node]
+        miner_pct_online = 1 # miner always online
+        hash_rate = miner['hashrate']
+        is_active = miner['is_active']
+        
+        num_hashes = (hash_rate*params['duration']*60)*miner_pct_online*is_active
+        
+        clovers = mine_clovers(num_hashes)
+        
+        for clover in clovers:
+            clover_intention = {
+                "user": node,
+                "intention": "sell"
+                "clover": clover
+            }
+            clover_intentions.append(clover_intention)
+            
+    return clover_intentions
+
+
+def market_activity_policy(params, step, sL, s):
     
-    clovers_hashed = (hash_rate*60*60)*miner_pool*miner_pct_online
+    g = s['network']
     
-    clover = mine_clover()
+    clovers_for_sale = utils.get_clovers_for_sale(g)
+    
+    def update_listings(player):
+        owned_clovers = utils.get_owned_clovers(g, player)
+        
+        owned_clovers_for_sale = []
+        owned_clovers_not_for_sale = []
+        for clover in owned_clovers:
+            if g.nodes[clover]['for_sale']:
+                owned_clovers_for_sale.append(clover)
+            else:
+                owned_clovers_not_for_sale.append(clover)
+        
+        
+            
+            
+    for node in utils.get_nodes_by_type(s['network'], 'player'):
+        player = s['network'].nodes[node]
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

@@ -14,8 +14,6 @@ market_settings = {
 initial_conditions = {
     'bc-balance': 0,         # bonding curve collateral balance (ETH)
     'bc-totalSupply': 0,     # clubToken totalSupply
-    'bankClovers': 0,        # total clovers owned by Bank
-    'clovers': 0,            # total number of clovers
     'symmetries': {
         'hasSymmetry': 0,        # total number of symmetrical clovers
         'rotSym': 0,             # total rotational symmetries
