@@ -8,7 +8,10 @@ market_settings = {
     'priceMultiplier': 10,   # used to calculate cost to keep (multiplied by reward amt + base price)
     'base-price': 1,         # minimum price to keep any clover
     'payMultiplier': 0.1,    # used to calculate reward (multiplied by ratio of rarity)
-    'initialSpend': 40       # initial spend in ETH
+    'initialSpend': 40,       # initial spend in ETH
+    'stdDev': 2,               # standard deviation of subjective price to objective price
+    'number_of_players': 35,
+    'number_of_miners': 15
 }
 
 initial_conditions = {
