@@ -10,8 +10,11 @@ market_settings = {
     'payMultiplier': 0.1,    # used to calculate reward (multiplied by ratio of rarity)
     'initialSpend': 40,       # initial spend in ETH
     'stdDev': 2,               # standard deviation of subjective price to objective price
-    'number_of_players': 35,
-    'number_of_miners': 15
+    'number_of_players': 66,
+    'number_of_miners': 34,
+    'gas_cost_in_eth': 0.001313,
+    'add_to_market_cost_in_eth': 0.00054,
+    'buy_from_market_cost_in_eth': 0.002805,
 }
 
 initial_conditions = {
