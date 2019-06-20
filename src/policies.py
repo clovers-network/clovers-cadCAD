@@ -76,6 +76,8 @@ def player_policy(params, step, sL, s):
             
             # PLACEHOLDER: add function for generating non-sym pretty clovers via UI
             
+            clovers_to_keep = 0
+            
             for clover in rare_clovers:
                 
                 clover_intention = {"user": node, "clover": clover}
@@ -83,7 +85,8 @@ def player_policy(params, step, sL, s):
                 if clover['pretty']:
                     # with each additional clover kept, reduce the probability
                     # of a player choosing to keep another pretty clover
-                    if (rand() < (1 / 1 + len(clovers_to_keep))):
+                    if (rand() < (1 / 1 + clovers_to_keep)):
+                        clovers_to_keep += 1
                         clover_intention['intention'] = "keep"
                     else:
                         clover_intention['intention'] = "sell"
@@ -112,7 +115,7 @@ def miner_policy(params, step, sL, s):
         for clover in clovers:
             clover_intention = {
                 "user": node,
-                "intention": "sell"
+                "intention": "sell",
                 "clover": clover
             }
             clover_intentions.append(clover_intention)
@@ -137,15 +140,22 @@ def market_activity_policy(params, step, sL, s):
             else:
                 owned_clovers_not_for_sale.append(clover)
         
+        for_sale_ratio = len(owned_clovers_for_sale)/len(owned_clovers)
+        desired_ratio = g.nodes[player]['desired_for_sale_ratio']
         
-            
+        to_sell = []
+        if for_sale_ratio < desired_ratio:
+            for clover in owned_clovers_not_for_sale:
+                new_ratio = len(to_sell + owned_clovers_for_sale)/len(owned_clovers)
+                if rand() < ((desired_ratio - new_ratio)/desired_ratio):
+                    to_sell.append(clover)
+        
+        return to_sell
             
     for node in utils.get_nodes_by_type(s['network'], 'player'):
         player = s['network'].nodes[node]
         
-    
-    
-    
+
     
     
     

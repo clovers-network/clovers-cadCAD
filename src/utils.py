@@ -10,19 +10,22 @@ def processSymmetries(s, clover):
     return s
 
 # processBuysAndSells will take a current clover_intention and execute the result of keeping or selling it. This includes updates to the state (s) with regard to bc-totalSupply, bc-balance, user[supply] & user[eth-spent]
-def processBuysAndSells(s, clover_intentions, market_settings):
+def processBuysAndSells(s, clover_intention, market_settings):
     g = s['network']
-    nodeId = clover_intention['user']
-    user = g.nodes[nodeId]
-    clover = clover_intentions['clover']
-    bank = utils.get_nodes_by_type(g, "bank")[0]
+    userId = clover_intention['user']
+    user = g.nodes[userId]
+    clover = clover_intention['clover']
+    # THIS IS SLOWWWWW
+    # potentially: remove bank from "network", store a separate state object of all bank owned
+    # clovers for fast lookups, maybe the same for the "market"
+    bankId = get_nodes_by_type(g, "bank")[0]
 
     s = processSymmetries(s, clover)
     
-    (g, nodeId) = add_clover_to_network(g, clover)
+    (g, cloverId) = add_clover_to_network(g, clover)
 
-    if (clover_intentions['intention'] == 'keep'):
-        set_owner(g, player, nodeId)
+    if (clover_intention['intention'] == 'keep'):
+        set_owner(g, userId, cloverId)
         price = getCloverPrice(s, clover, market_settings)
         if (price > user['supply']):
             costToBuy = calculatePriceForTokens(s, market_settings, price)
@@ -33,7 +36,7 @@ def processBuysAndSells(s, clover_intentions, market_settings):
         user['supply'] -= price
         s['bc-totalSupply'] -= price
     else:
-        set_owner(g, bank, nodeId) 
+        set_owner(g, bankId, cloverId) 
         reward = getCloverReward(s, clover, market_settings)
         user['supply'] += reward
         s['bc-totalSupply'] += reward
@@ -63,7 +66,7 @@ def initialize_network(n, m):
         network.nodes[i]['player_active_percent'] = 0.7
         network.nodes[i]['supply'] = 0
         network.nodes[i]['eth-spent'] = 0
-        network.nodes[i]['market_listing_propensity'] = 0.3 # percentage of owned clovers to list
+        network.nodes[i]['desired_for_sale_ratio'] = 0.3 # percentage of owned clovers to list
         network.nodes[i]['market_buying_propensity'] = 0.8 # probability to buy pretty clovers from market
         
     for j in range(n,n+m):
@@ -112,6 +115,8 @@ def get_owner(g, cloverId):
         return owner  
 
 def set_owner(g, ownerId, cloverId):
+    ebunch = list(g.edges(cloverId))
+    g.remove_edges_from(ebunch)
     g.add_edge(ownerId, cloverId)
     g.edges[(ownerId, cloverId)]['type'] = "ownership"
     g.nodes[cloverId]['owner_type'] = g.nodes[ownerId]['type']

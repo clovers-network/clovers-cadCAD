@@ -12,7 +12,7 @@ def bc_totalSupply(params, step, sL, s, _input):
     return ('bc-totalSupply', s['bc-totalSupply'])
 
 def update_symmetries(params, step, sL, s, _input):
-        if _input['clover_intentions']:
+    if _input['clover_intentions']:
         for clover_intention in _input['clover_intentions']:
             s = utils.processSymmetries(s, clover_intention['clover']) # could also use processBuysAndSells()
     return ('symmetries', s['symmetries'])
