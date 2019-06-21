@@ -4,31 +4,45 @@ from numpy.random import rand
 import numpy
 from scipy.stats import norm
 import networkx as nx
+import math
+
+# def genuid(g):
+#     found = false
+#     while(!found):
+#         id = math.floor(rand() * 100000000)
+#         found = !g.has_node(id)
+#     return id
+def genuid(g):
+    found = False
+    while(not found):
+        id = math.floor(rand() * 1000000000000000)
+        found = not g.has_node(id)
+    return id
 
 def getObjectiveValue(s, clover, market_settings, step):
     g = s['network']
     syms = s['symmetries']
-
     fresh = 1
-    # if older than 50 steps, decrease fresh by 50%
-    if (step - clover['step'] >= 50 ): #PARAMATER
-        fresh = 0.5 #PARAMATER
+    if (step - clover['step'] >= market_settings['old_clover_interval'] ):
+        fresh = market_settings['old_clover_fresh_factor']
     # if within less than previous 5 boost at least by 110%
-    if (clover['step'] + 5 >= step): #PARAMATER
-        fresh = 1.01  #PARAMATER
+    if (clover['step'] + market_settings['med_clover_interval'] >= step):
+        fresh = market_settings['med_clover_fresh_factor']
     # if super fresh boost by 120%
-    if (clover['step'] + 1 == step): #PARAMATER
-        fresh = 1.02 #PARAMATER
+    if (clover['step'] + market_settings['new_clover_interval'] == step):
+        fresh = market_settings['new_clover_fresh_factor']
         
     listValue =  market_settings['base-price'] + getCloverReward(syms, clover, market_settings)
     pretty = clover['pretty'] #NOTE: Pretty must be able to come close to price multiplier
 
-    return listValue * pretty * fresh #PARAMATER        
+    return listValue * pretty * fresh        
 
 
 def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step):
     cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step)
-    numpy.random.seed([userId,cloverId])
+    foo = [1, 2, 3]
+
+    numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
     stdDev = market_settings['stdDev']
     return norm.rvs(loc=cloverObjectiveValue,scale=stdDev)
 
@@ -49,13 +63,10 @@ def processMarketIntentions(s, market_intention, market_settings, step):
     if intent == 'toBuy':
         price = clover['price']
 
-        # confirm it is actually for sale (TODO: should throw error)
         if (price == 0):
-            print('ERROR: Price is 0 but it is somehow for sale', market_intention)
-            return s
+            raise NameError('cant buy a clover thats not for sale', intent, clover)
 
         player = g.nodes[playerId]
-        
         # if player doesn't have enough coins, buy some
         if (price > player['supply']):
             costToBuy = calculatePriceForTokens(s, market_settings, price)
@@ -102,8 +113,11 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
         clover_intention['intention'] = "sell" if price > subjectivePrice else 'keep'
     
     reward = getCloverReward(s['symmetries'], clover, market_settings)
+    rewardInEth = calculateCashout(s, market_settings, reward)
     g.nodes[cloverId]['reward'] = reward
-    # TODO: if intention == sell BUT reward < gas costs then skip it
+    
+    
+    
     if (clover_intention['intention'] == 'keep'):
         g = set_owner(g, userId, cloverId)
         if (price > user['supply']):
@@ -112,15 +126,20 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
             user['eth-spent'] += costToBuy
+            user['eth-spent'] += market_settings['buy_coins_cost_in_eth']
+        user['eth-spent'] += market_settings['register_clover_cost_in_eth']
         user['supply'] -= price
         s['bc-totalSupply'] -= price
-        # TODO: maybe give the clover a for sale price?
     else:
-        g = set_owner(g, bankId, cloverId)
-        listingPrice = getCloverListingPrice(s, clover, market_settings)
-        g = set_price(g, cloverId, listingPrice)
-        user['supply'] += reward
-        s['bc-totalSupply'] += reward
+        if (rewardInEth > market_settings['register_clover_cost_in_eth']):
+            g = set_owner(g, bankId, cloverId)
+            listingPrice = getCloverListingPrice(s, clover, market_settings)
+            g = set_price(g, cloverId, listingPrice)
+            user['supply'] += reward
+            s['bc-totalSupply'] += reward
+            user['eth-spent'] += market_settings['register_clover_cost_in_eth']
+        else:
+            delete_clover(s, cloverId)
         
     return s
 
@@ -137,43 +156,48 @@ def initialize(market_settings, conditions):
     return state
 
 
-def initialize_network(market_settings):
-    n = market_settings['number_of_players']
-    m = market_settings['number_of_miners']
+def seed_network(n, m, g, market_settings):
     players = []
-    miners = []
-    network = nx.DiGraph()
     for i in range(n):
-        network.add_node(i)
-        network.nodes[i]['type'] = "player"
+        nodeId = genuid(g)
+        g.add_node(nodeId)
+        g.nodes[nodeId]['type'] = "player"
         
         # randomize player's hashrate on
         # a normal distribution centered on 15, stddev=2
-        network.nodes[i]['hashrate'] = norm.rvs(loc=15, scale=2)
-        network.nodes[i]['player_active_percent'] = 0.7
-        network.nodes[i]['supply'] = 0
-        network.nodes[i]['eth-spent'] = 0
-        network.nodes[i]['eth-earned'] = 0
-        network.nodes[i]['desired_for_sale_ratio'] = random.uniform(0.5, 0.9) # percentage of owned clovers to list
-        network.nodes[i]['market_buying_propensity'] = random.uniform(0, 0.8) # probability to buy pretty clovers from market
-        network.nodes[i]['is_active'] = False
-        players.append(i)
-        
-    for j in range(n,n+m):
-        network.add_node(j)
-        network.nodes[j]['type'] = "miner"
-        network.nodes[j]['cash_out_threshold'] = market_settings['miner_cash_out_threshold']
-        network.nodes[j]['hashrate'] = norm.rvs(loc=15, scale=2)
-        network.nodes[j]['supply'] = 0
-        network.nodes[j]['eth-spent'] = 0
-        network.nodes[j]['eth-earned'] = 0
-        network.nodes[j]['is_active'] = 0.7
-        miners.append(j)
+        g.nodes[nodeId]['hashrate'] = market_settings['miner_hashrate']()
+        g.nodes[nodeId]['player_active_percent'] = market_settings['pct_player_is_active']
+        g.nodes[nodeId]['supply'] = 0
+        g.nodes[nodeId]['eth-spent'] = 0
+        g.nodes[nodeId]['eth-earned'] = 0
+        g.nodes[nodeId]['desired_for_sale_ratio'] = market_settings['desired_for_sale_ratio']()
+        g.nodes[nodeId]['market_buying_propensity'] = market_settings['market_buying_propensity']()
+        g.nodes[nodeId]['is_active'] = False
+        players.append(nodeId)
+    miners = []    
+    for j in range(m):
+        nodeId = genuid(g)
+        g.add_node(nodeId)
+        g.nodes[nodeId]['type'] = "miner"
+        g.nodes[nodeId]['cash_out_threshold'] = market_settings['miner_cash_out_threshold']
+        g.nodes[nodeId]['hashrate'] = market_settings['miner_hashrate']()
+        g.nodes[nodeId]['supply'] = 0
+        g.nodes[nodeId]['eth-spent'] = 0
+        g.nodes[nodeId]['eth-earned'] = 0
+        g.nodes[nodeId]['is_active'] = market_settings['pct_miner_is_active']
+        miners.append(nodeId)
+    return (g, players, miners)
+
+def initialize_network(market_settings):
+    g = nx.DiGraph()
     
-    bank = n + m
-    network.add_node(n + m)
-    network.nodes[n+m]['type'] = "bank"
-    return (network, players, miners, bank)
+    (g, players, miners) = seed_network(market_settings['initial_players'], market_settings['initial_miners'], g, market_settings)
+    
+    bank = genuid(g)
+    g.add_node(bank)
+    g.nodes[bank]['type'] = "bank"
+    
+    return (g, players, miners, bank)
 
 #helper functions
 def get_nodes_by_type(s, node_type_selection):
@@ -192,9 +216,13 @@ def get_nodes_by_type(s, node_type_selection):
 def get_edges_by_type(g, edge_type_selection):
     return [edge for edge in g.edges if g.edges[edge]['type']== edge_type_selection ]
 
+def delete_clover(s, cloverId):
+    s['clovers'].remove(cloverId)
+
+
 def add_clover_to_network(s, clover, price = 0):
     g = s['network']
-    nodeId = len(g.nodes)
+    nodeId = genuid(g)
     g.add_node(nodeId)
     s['clovers'].append(nodeId)
     g.nodes[nodeId]['type'] = 'clover'

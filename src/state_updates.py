@@ -3,22 +3,33 @@ import itertools
 from config import market_settings
 from functools import reduce
 
-
+def update_participant_pool(params, step, sL, s, _input):
+    s = s['s']
+    g = s['network']
+    if 'new-players' in _input:
+        (g, players, miners) = utils.seed_network(_input['new-players'], 0, g, market_settings)
+        s['players'] = s['players'] + players
+    if 'new-miners' in _input:
+        (g, players, miners) = utils.seed_network(0, _input['new-miners'], g, market_settings)
+        s['miners'] = s['miners'] + miners
+    return ('s', s)
 
 def update_state(params, step, sL, s, _input):
+    _s = s
     s = s['s']
     if 'active_players' in _input:
         s['network'] = updateActivePlayers(s, _input['active_players'])
     if 'clover_intentions' in _input:
-        s = processCloverIntentions(s, _input['clover_intentions'], step)
+        s = processCloverIntentions(s, _input['clover_intentions'], _s['timestep'])
     if 'market_intentions' in _input:
-        s = processMarketIntentions(s, _input['market_intentions'], step)
+        s = processMarketIntentions(s, _input['market_intentions'], _s['timestep'])
     return ('s', s)
 
 def update_state_miner_policy(params, step, sL, s, _input):
+    _s = s
     s = s['s']
     if 'clover_intentions' in _input:
-        s = processCloverIntentions(s, _input['clover_intentions'], step)
+        s = processCloverIntentions(s, _input['clover_intentions'], _s['timestep'])
     s = processMinerCashOuts(s, market_settings)
     return ('s', s)
     
@@ -54,11 +65,14 @@ def processMinerCashOuts(s, marketSettings):
         gas_fee = marketSettings['sell_coins_cost_in_eth']
         
         if (cash_out_amount - gas_fee) > miner['cash_out_threshold']:
+#             print('cash out')
             miner['eth-earned'] += cash_out_amount
             s['bc-balance'] -= cash_out_amount
             s['bc-totalSupply'] -= miner['supply']
             miner['eth-spent'] += gas_fee
             miner['supply'] = 0
+#         else:
+#             print('cash out not worh the gas')
                 
     return s
 
