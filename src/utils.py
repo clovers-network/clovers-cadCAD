@@ -5,6 +5,22 @@ import numpy
 from scipy.stats import norm
 import networkx as nx
 import math
+from networkx.readwrite import json_graph
+
+# DG = nx.DiGraph()
+# DG.add_edge('a', 'b')
+# print json_graph.dumps(DG)
+
+def fromDICT(d):
+    G = nx.DiGraph()
+    G.add_nodes_from(d['nodes'])
+    G.add_edges_from(d['edges'])
+    return G
+
+
+def toDICT(G):
+    return dict(nodes=[[n, G.nodes[n]] for n in G.nodes()],
+         edges=[[u, v, G.get_edge_data(u, v)] for u,v in G.edges()])
 
 # def genuid(g):
 #     found = false
@@ -41,8 +57,8 @@ def getObjectiveValue(s, clover, market_settings, step):
 def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step):
     cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step)
     foo = [1, 2, 3]
-
-    numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
+#     TODO: add back when time isn't an issue
+#     numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
     stdDev = market_settings['stdDev']
     return norm.rvs(loc=cloverObjectiveValue,scale=stdDev)
 
@@ -297,7 +313,7 @@ def getCloverReward(syms, clover, market_settings):
     if not clover['hasSymmetry']:
         return 0
     totalRewards = 0
-    allSymms = numpy.sum([syms['rotSym'], syms['y0Sym'], syms['x0Sym'], syms['xySym'], syms['xnySym']])
+    allSymms = syms['rotSym'] + syms['y0Sym'] + syms['x0Sym'] + syms['xySym'] + syms['xnySym']
     if clover['rotSym']:
         totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['rotSym'] + 1)
     if clover['y0Sym']:

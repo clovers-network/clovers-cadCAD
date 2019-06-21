@@ -2,6 +2,16 @@ import utils
 import itertools
 from config import market_settings
 from functools import reduce
+import json
+
+def save_file(params, step, sL, s, _input):
+    _s = dict(s)
+    _s['s']['network'] = utils.toDICT(_s['s']['network'])
+    with open('last-run.json', 'w+') as f:  # writing JSON object
+        json.dump(_s, f)
+    s['s']['network'] = utils.fromDICT(_s['s']['network'])
+    return ('s', s['s'])
+
 
 def update_participant_pool(params, step, sL, s, _input):
     s = s['s']
