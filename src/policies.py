@@ -10,7 +10,8 @@ def participant_pool_policy(params, step, sL, s):
     policy = {}
     playerCount = len(s['s']['players'])
     minerCount = len(s['s']['miners'])
-    if (s['timestep'] != 0 and s['timestep'] % market_settings['increase_participants_every_x_steps'] == 0):
+    timestep = s['timestep'] + (24 * s['s']['day-number'])
+    if (timestep != 0 and timestep % market_settings['increase_participants_every_x_steps'] == 0):
         policy['new-players'] = math.ceil(playerCount * 0.1)
         policy['new-miners'] = math.ceil(minerCount * 0.1)
     return policy
@@ -66,6 +67,7 @@ def player_policy(params, step, sL, s):
     _s = s
     s = s['s'] # wrap state for backwards compatibility
     cloverCount = len(s['clovers'])
+    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
     # iterate through players in a given timestep period and their individual logics
     for node in utils.get_nodes_by_type(s, 'player'):
         
@@ -81,7 +83,7 @@ def player_policy(params, step, sL, s):
                          * player['player_active_percent']
             
             # returns an array of all rare clovers mined during the period
-            rare_clovers = mine_clovers(num_hashes, _s['timestep'], cloverCount)
+            rare_clovers = mine_clovers(num_hashes, timestep, cloverCount)
             
             # TODO: add function for generating non-sym pretty clovers via UI            
             for clover in rare_clovers:
@@ -93,9 +95,11 @@ def player_policy(params, step, sL, s):
 
 def miner_policy(params, step, sL, s):
     params = params[0]
+    _s = s
     s = s['s'] # wrap state for backwards compatibility
     clover_intentions = []
     cloverCount = len(s['clovers'])
+    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
     for node in utils.get_nodes_by_type(s, 'miner'):
         miner = s['network'].nodes[node]
         miner_pct_online = market_settings['miner_pct_online'] # miner always online
@@ -104,7 +108,7 @@ def miner_policy(params, step, sL, s):
         
         num_hashes = (hash_rate*params['duration']*60)*miner_pct_online*is_active
         
-        clovers = mine_clovers(num_hashes, step, cloverCount)
+        clovers = mine_clovers(num_hashes, timestep, cloverCount)
         
         for clover in clovers:
             clover_intention = {
@@ -121,8 +125,10 @@ def miner_policy(params, step, sL, s):
 
 def market_activity_policy(params, step, sL, s):
     params = params[0]
+    _s = s
     s = s['s'] # wrap state for backwards compatibility
     g = s['network']
+    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
     def get_sells(playerId):
         owned_clovers = utils.get_owned_clovers(g, playerId) #TODO: check performance
         owned_clovers_for_sale = []
@@ -163,7 +169,7 @@ def market_activity_policy(params, step, sL, s):
         for random_clover_id in random_clovers:
             random_clover = g.nodes[random_clover_id]
             price = random_clover['price']
-            subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, step)
+            subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, timestep)
             market_buying_propensity = g.nodes[playerId]['market_buying_propensity']
             _rand = rand()
             if (subjectivePrice > price and market_buying_propensity > _rand):
