@@ -1,4 +1,5 @@
 from itertools import *
+import random
 from numpy.random import rand
 import numpy
 from scipy.stats import norm
@@ -14,10 +15,10 @@ def getObjectiveValue(s, clover, market_settings, step):
         fresh = 0.5 #PARAMATER
     # if within less than previous 5 boost at least by 110%
     if (clover['step'] + 5 >= step): #PARAMATER
-        fresh = 1.1  #PARAMATER
+        fresh = 1.01  #PARAMATER
     # if super fresh boost by 120%
     if (clover['step'] + 1 == step): #PARAMATER
-        fresh = 1.2 #PARAMATER
+        fresh = 1.02 #PARAMATER
         
     listValue =  market_settings['base-price'] + getCloverReward(syms, clover, market_settings)
     pretty = clover['pretty'] #NOTE: Pretty must be able to come close to price multiplier
@@ -90,7 +91,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
 
     s = processSymmetries(s, clover)
     
-    (g, cloverId) = add_clover_to_network(g, clover)
+    cloverId = add_clover_to_network(s, clover)
 
     subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step)
     price = getCloverPrice(s, clover, market_settings)
@@ -130,12 +131,17 @@ def initialize(market_settings, conditions):
     
     conditions['bc-balance'] = market_settings["initialSpend"]
     conditions['bc-totalSupply'] = init_ts(conditions)
-    conditions['network'] = initialize_network(market_settings['number_of_players'], market_settings['number_of_miners'])
+    (conditions['network'], conditions['players'], conditions['miners'], conditions['bank']) = initialize_network(market_settings)
+    conditions['clovers'] = []
     state = {"s" : conditions}
     return state
 
 
-def initialize_network(n, m):
+def initialize_network(market_settings):
+    n = market_settings['number_of_players']
+    m = market_settings['number_of_miners']
+    players = []
+    miners = []
     network = nx.DiGraph()
     for i in range(n):
         network.add_node(i)
@@ -148,43 +154,59 @@ def initialize_network(n, m):
         network.nodes[i]['supply'] = 0
         network.nodes[i]['eth-spent'] = 0
         network.nodes[i]['eth-earned'] = 0
-        network.nodes[i]['desired_for_sale_ratio'] = 0.3 # percentage of owned clovers to list
-        network.nodes[i]['market_buying_propensity'] = 0.8 # probability to buy pretty clovers from market
+        network.nodes[i]['desired_for_sale_ratio'] = random.uniform(0.5, 0.9) # percentage of owned clovers to list
+        network.nodes[i]['market_buying_propensity'] = random.uniform(0, 0.8) # probability to buy pretty clovers from market
         network.nodes[i]['is_active'] = False
+        players.append(i)
         
     for j in range(n,n+m):
         network.add_node(j)
         network.nodes[j]['type'] = "miner"
-        network.nodes[j]['cash_out_threshold'] = 0.01
+        network.nodes[j]['cash_out_threshold'] = market_settings['miner_cash_out_threshold']
         network.nodes[j]['hashrate'] = norm.rvs(loc=15, scale=2)
         network.nodes[j]['supply'] = 0
         network.nodes[j]['eth-spent'] = 0
         network.nodes[j]['eth-earned'] = 0
         network.nodes[j]['is_active'] = 0.7
+        miners.append(j)
     
+    bank = n + m
     network.add_node(n + m)
     network.nodes[n+m]['type'] = "bank"
-    return network
+    return (network, players, miners, bank)
 
 #helper functions
-def get_nodes_by_type(g, node_type_selection):
-    return [node for node in g.nodes if g.nodes[node]['type']== node_type_selection ]
+def get_nodes_by_type(s, node_type_selection):
+    if (node_type_selection == 'player'):
+        return s['players']
+    elif (node_type_selection == 'miner'):
+        return s['miners']
+    elif (node_type_selection == 'bank'):
+        return s['bank']
+    elif (node_type_selection == 'clover'):
+        return s['clovers']
+    else:
+        raise NameError('unknown node_type_selection', node_type_selection)
+#     return [node for node in g.nodes if g.nodes[node]['type']== node_type_selection ]
 
 def get_edges_by_type(g, edge_type_selection):
     return [edge for edge in g.edges if g.edges[edge]['type']== edge_type_selection ]
 
-def add_clover_to_network(g, clover, price = 0):
+def add_clover_to_network(s, clover, price = 0):
+    g = s['network']
     nodeId = len(g.nodes)
     g.add_node(nodeId)
+    s['clovers'].append(nodeId)
     g.nodes[nodeId]['type'] = 'clover'
     g.nodes[nodeId]['reward'] = '0'
     g.nodes[nodeId]['price'] = price
     for attr in clover.keys():
         g.nodes[nodeId][attr] = clover[attr]
-    return (g, nodeId)
+    return nodeId
 
-def get_clovers_for_sale(g):
-    clovers = get_nodes_by_type(g, "clover")
+def get_clovers_for_sale(s):
+    g = s['network']
+    clovers = get_nodes_by_type(s, "clover")
     return [clover for clover in clovers if g.nodes[clover]['price'] > 0]
     
 def get_owned_clovers(g, ownerId):
@@ -229,6 +251,12 @@ def getPower(CW):
     
 def calculatePurchaseReturn(totalSupply, collateral, CW, amount):
     return totalSupply * ((1 + amount / collateral)**CW-1)
+
+def calculateCashout(s, market_settings, amount):
+    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
+    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
+    CW = market_settings['bc-reserveRatio']
+    return calculateSellReturn(totalSupply, collateral, CW, amount)
 
 def calculateSellReturn(totalSupply, collateral, CW, amount):
     return collateral * (1 - (1 - amount / totalSupply)**(1/CW))

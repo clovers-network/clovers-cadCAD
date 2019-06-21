@@ -15,6 +15,8 @@ market_settings = {
     'gas_cost_in_eth': 0.001313,
     'add_to_market_cost_in_eth': 0.00054,
     'buy_from_market_cost_in_eth': 0.002805,
+    'sell_coins_cost_in_eth': 0.001012,
+    'miner_cash_out_threshold': 0.01
 }
 
 initial_conditions = {

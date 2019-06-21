@@ -61,7 +61,7 @@ def player_policy(params, step, sL, s):
     clover_intentions = []
     s = s['s'] # wrap state for backwards compatibility
     # iterate through players in a given timestep period and their individual logics
-    for node in utils.get_nodes_by_type(s['network'], 'player'):
+    for node in utils.get_nodes_by_type(s, 'player'):
         
         player = s['network'].nodes[node]
         
@@ -92,7 +92,7 @@ def miner_policy(params, step, sL, s):
     params = params[0]
     s = s['s'] # wrap state for backwards compatibility
     clover_intentions = []
-    for node in utils.get_nodes_by_type(s['network'], 'miner'):
+    for node in utils.get_nodes_by_type(s, 'miner'):
         miner = s['network'].nodes[node]
         miner_pct_online = 1 # miner always online
         hash_rate = miner['hashrate']
@@ -144,7 +144,7 @@ def market_activity_policy(params, step, sL, s):
                     })
         return to_sell
 
-    clovers_for_sale = utils.get_clovers_for_sale(g)
+    clovers_for_sale = utils.get_clovers_for_sale(s)
 
     # shuffle the clovers potentially for sale
     shuffle(clovers_for_sale)
@@ -159,7 +159,14 @@ def market_activity_policy(params, step, sL, s):
             random_clover = g.nodes[random_clover_id]
             price = random_clover['price']
             subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, step)
-            if (subjectivePrice < price):
+            market_buying_propensity = g.nodes[playerId]['market_buying_propensity']
+            _rand = rand()
+#             print('price:', price)
+#             print('subjective price', subjectivePrice)
+#             print('market_buying_propensity', market_buying_propensity)
+#             print('_rand', _rand)
+            if (subjectivePrice > price and market_buying_propensity > _rand):
+#                 print('bought!!!!!!!!!!!!!!!!!!')
                 # remove clover from subsequent possible clovers
                 clovers_for_sale.remove(random_clover_id)
                 to_buy.append({
@@ -179,7 +186,7 @@ def market_activity_policy(params, step, sL, s):
     # set them for sale at the subjective price
 
     handleClovers = []
-    for playerId in utils.get_nodes_by_type(s['network'], 'player'):
+    for playerId in utils.get_nodes_by_type(s, 'player'):
         if params['player_active']():
             handleClovers = handleClovers + get_sells(playerId) + get_buys(playerId, clovers_for_sale)
     s = {"s": s}  # wrap state for backwards compatibility

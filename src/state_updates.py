@@ -8,7 +8,7 @@ from functools import reduce
 def update_state(params, step, sL, s, _input):
     s = s['s']
     if 'active_players' in _input:
-        s['network'] = updateActivePlayers(s['network'], _input['active_players'])
+        s['network'] = updateActivePlayers(s, _input['active_players'])
     if 'clover_intentions' in _input:
         s = processCloverIntentions(s, _input['clover_intentions'], step)
     if 'market_intentions' in _input:
@@ -22,9 +22,9 @@ def update_state_miner_policy(params, step, sL, s, _input):
     s = processMinerCashOuts(s, market_settings)
     return ('s', s)
     
-def updateActivePlayers(g, active_players):
-    all_players = utils.get_nodes_by_type(g, 'player')
-    
+def updateActivePlayers(s, active_players):
+    all_players = utils.get_nodes_by_type(s, 'player')
+    g = s['network']
     for player in all_players:
         if player in active_players:
             g.nodes[player]['is_active'] = True
@@ -38,7 +38,7 @@ def processMarketIntentions(s, market_intentions, step):
     return s
 
 def processCloverIntentions(s, clover_intentions, step):
-    bankId = utils.get_nodes_by_type(s['network'], "bank")[0]
+    bankId = utils.get_nodes_by_type(s, "bank")
     for clover_intention in clover_intentions:
         s = utils.processBuysAndSells(s, clover_intention, market_settings, bankId, step)
     return s
@@ -46,17 +46,17 @@ def processCloverIntentions(s, clover_intentions, step):
 def processMinerCashOuts(s, marketSettings):
     g = s['network']
     
-    minerNodes = utils.get_nodes_by_type(g, 'miner')
+    minerNodes = utils.get_nodes_by_type(s, 'miner')
     
     for node in minerNodes:
         miner = g.nodes[node]
-        
-        cash_out_amount = utils.calculatePriceForTokens(s, marketSettings, miner['supply'])
-        gas_fee = 0
+        cash_out_amount = utils.calculateCashout(s, marketSettings, miner['supply']) # returns ETH
+        gas_fee = marketSettings['sell_coins_cost_in_eth']
         
         if (cash_out_amount - gas_fee) > miner['cash_out_threshold']:
             miner['eth-earned'] += cash_out_amount
             s['bc-balance'] -= cash_out_amount
+            s['bc-totalSupply'] -= miner['supply']
             miner['eth-spent'] += gas_fee
             miner['supply'] = 0
                 
