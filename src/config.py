@@ -43,7 +43,7 @@ market_settings = {
     'med_clover_fresh_factor': 1.05,
     'new_clover_interval': 1,
     'new_clover_fresh_factor': 1.1,
-    'increase_participants_every_x_steps': 10,
+    'increase_participants_every_x_steps': 24,
 }
 
 

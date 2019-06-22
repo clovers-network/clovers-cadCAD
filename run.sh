@@ -1,3 +1,3 @@
 #!/bin/bash
 source .env
-python pull.py
+python3 pull.py
