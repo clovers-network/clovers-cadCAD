@@ -10,7 +10,7 @@ def participant_pool_policy(params, step, sL, s):
     policy = {}
     playerCount = len(s['s']['players'])
     minerCount = len(s['s']['miners'])
-    timestep = s['timestep'] + (24 * s['s']['day-number'])
+    timestep = s['timestep'] + s['s']['previous-timesteps']
     if (timestep != 0 and timestep % market_settings['increase_participants_every_x_steps'] == 0):
         policy['new-players'] = math.ceil(playerCount * 0.1)
         policy['new-miners'] = math.ceil(minerCount * 0.1)
@@ -67,7 +67,7 @@ def player_policy(params, step, sL, s):
     _s = s
     s = s['s'] # wrap state for backwards compatibility
     cloverCount = len(s['clovers'])
-    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
+    timestep = _s['timestep'] + _s['s']['previous-timesteps']
     # iterate through players in a given timestep period and their individual logics
     for node in utils.get_nodes_by_type(s, 'player'):
         
@@ -99,7 +99,7 @@ def miner_policy(params, step, sL, s):
     s = s['s'] # wrap state for backwards compatibility
     clover_intentions = []
     cloverCount = len(s['clovers'])
-    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
+    timestep = _s['timestep'] + _s['s']['previous-timesteps']
     for node in utils.get_nodes_by_type(s, 'miner'):
         miner = s['network'].nodes[node]
         miner_pct_online = market_settings['miner_pct_online'] # miner always online
@@ -128,7 +128,7 @@ def market_activity_policy(params, step, sL, s):
     _s = s
     s = s['s'] # wrap state for backwards compatibility
     g = s['network']
-    timestep = _s['timestep'] + (24 * _s['s']['day-number'])
+    timestep = _s['timestep'] + _s['s']['previous-timesteps']
     def get_sells(playerId):
         owned_clovers = utils.get_owned_clovers(g, playerId) #TODO: check performance
         owned_clovers_for_sale = []

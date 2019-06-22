@@ -48,7 +48,7 @@ market_settings = {
 
 
 initial_conditions = {
-    'day-number': 0,
+    'previous-timesteps': 0,
     'bc-balance': 0,         # bonding curve collateral balance (ETH)
     'bc-totalSupply': 0,     # clubToken totalSupply
     'symmetries': {
