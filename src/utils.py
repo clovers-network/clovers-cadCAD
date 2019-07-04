@@ -6,10 +6,32 @@ from scipy.stats import norm
 import networkx as nx
 import math
 from networkx.readwrite import json_graph
+import os.path
+import json
+import shutil
 
 # DG = nx.DiGraph()
 # DG.add_edge('a', 'b')
 # print json_graph.dumps(DG)
+
+
+def getNetwork():
+    if  os.path.exists('./network.gpickle'):
+        g = nx.read_gpickle("network.gpickle")
+#         with open('./network.json', 'r') as f:
+#             g = json.load(f)
+#             g = fromDICT(g)
+    else:
+        g = nx.DiGraph()
+    return g
+
+def saveNetwork(g):
+    if  os.path.exists('./network.gpickle'):
+        shutil.copy('network.gpickle', 'network.gpickle.bak')
+    nx.write_gpickle(g, "network.gpickle")
+#     _g = toDICT(g)
+#     with open('./network.json', 'w+') as f:  # writing JSON object
+#         json.dump(_g, f)
 
 def fromDICT(d):
     G = nx.DiGraph()
@@ -66,6 +88,11 @@ def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step):
 def processSymmetries(s, clover):
     for sy in ['rotSym', 'x0Sym', 'y0Sym', 'xySym', 'xnySym', 'hasSymmetry']:
         s['symmetries'][sy] += (1 if clover[sy] else 0)
+    return s
+
+def unprocessSymmetries(s, clover):
+    for sy in ['rotSym', 'x0Sym', 'y0Sym', 'xySym', 'xnySym', 'hasSymmetry']:
+        s['symmetries'][sy] -= (1 if clover[sy] else 0)
     return s
 
 def processMarketIntentions(s, market_intention, market_settings, step):
@@ -132,8 +159,6 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     rewardInEth = calculateCashout(s, market_settings, reward)
     g.nodes[cloverId]['reward'] = reward
     
-    
-    
     if (clover_intention['intention'] == 'keep'):
         g = set_owner(g, userId, cloverId)
         if (price > user['supply']):
@@ -155,15 +180,14 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
             s['bc-totalSupply'] += reward
             user['eth-spent'] += market_settings['register_clover_cost_in_eth']
         else:
+            s = unprocessSymmetries(s, clover)
             delete_clover(s, cloverId)
-        
     return s
 
 def initialize(market_settings, conditions):
-    
     def init_ts(s):
-        return calculatePurchaseReturn(market_settings["bc-virtualSupply"], market_settings["bc-virtualBalance"], market_settings["bc-reserveRatio"], market_settings["initialSpend"])
-    
+        return calculatePurchaseReturn(s, market_settings, market_settings["initialSpend"])
+
     conditions['bc-balance'] = market_settings["initialSpend"]
     conditions['bc-totalSupply'] = init_ts(conditions)
     (conditions['network'], conditions['players'], conditions['miners'], conditions['bank']) = initialize_network(market_settings)
@@ -234,6 +258,7 @@ def get_edges_by_type(g, edge_type_selection):
 
 def delete_clover(s, cloverId):
     s['clovers'].remove(cloverId)
+    s['network'].remove_node(cloverId)
 
 
 def add_clover_to_network(s, clover, price = 0):
@@ -293,22 +318,38 @@ def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
 def getPower(CW):
     return 1 / CW -1
     
-def calculatePurchaseReturn(totalSupply, collateral, CW, amount):
+def calculatePurchaseReturn(s, market_settings, amount):
+    totalSupply = s['bc-totalSupply'] + market_settings["bc-virtualSupply"]
+    collateral = s['bc-balance'] + market_settings["bc-virtualBalance"]
+    CW = market_settings["bc-reserveRatio"]
+    if (s['bc-balance'] <= 0):
+        return 0
     return totalSupply * ((1 + amount / collateral)**CW-1)
 
 def calculateCashout(s, market_settings, amount):
+    if (s['bc-balance'] <= 0):
+        return 0
     totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
     collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
     CW = market_settings['bc-reserveRatio']
-    return calculateSellReturn(totalSupply, collateral, CW, amount)
+    result = calculateSellReturn(totalSupply, collateral, CW, amount)
+    if (result > s['bc-balance']):
+        result = s['bc-balance']
+    return result
 
 def calculateSellReturn(totalSupply, collateral, CW, amount):
+    if (collateral <= 0):
+        return 0
     return collateral * (1 - (1 - amount / totalSupply)**(1/CW))
 
-def calculateCurrentPrice(totalSupply, collateral, CW):
+def calculateCurrentPrice(s, market_settings):
+    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
+    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
+    CW = market_settings['bc-reserveRatio']
+    if (s['bc-balance'] <= 0):
+        return 0
     return collateral / (totalSupply * CW)
 
-# SHOULD UPDATE s TO BE TAKING NETWORK AS AN INPUT, FILTERING BY CLOVER NODES
 def getCloverReward(syms, clover, market_settings):
     if not clover['hasSymmetry']:
         return 0

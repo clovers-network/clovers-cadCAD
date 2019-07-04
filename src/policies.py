@@ -12,8 +12,8 @@ def participant_pool_policy(params, step, sL, s):
     minerCount = len(s['s']['miners'])
     timestep = s['timestep'] + s['s']['previous-timesteps']
     if (timestep != 0 and timestep % market_settings['increase_participants_every_x_steps'] == 0):
-        policy['new-players'] = math.ceil(playerCount * 0.1)
-        policy['new-miners'] = math.ceil(minerCount * 0.1)
+        policy['new-players'] = math.ceil(playerCount * market_settings['player_multiplier'])
+        policy['new-miners'] = math.ceil(minerCount * market_settings['miner_multiplier'])
     return policy
 
 def getClaim():
@@ -37,7 +37,6 @@ def mine_clovers(num_hashes, step, cloverCount):
         clover['step'] = step
 
         symmetry = utils.getSymmetry(rarity['symmetries'])
-    
         for sym in possibleSyms:
             clover[sym] = False
     
@@ -54,7 +53,6 @@ def mine_clovers(num_hashes, step, cloverCount):
         
         clover['pretty'] = rand() + market_settings['pretty_multiplier'] if (rand() < rarity['rarePretty']) else 0
         clover['hasSymmetry'] = True
-        
         clovers.append(clover)
     
     return clovers
@@ -64,10 +62,11 @@ def player_policy(params, step, sL, s):
     params = params[0]
     active_players = []
     clover_intentions = []
-    _s = s
+    timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
+    s['network'] = utils.getNetwork()
     cloverCount = len(s['clovers'])
-    timestep = _s['timestep'] + _s['s']['previous-timesteps']
+    timestep = timestep + s['previous-timesteps']
     # iterate through players in a given timestep period and their individual logics
     for node in utils.get_nodes_by_type(s, 'player'):
         
@@ -88,18 +87,18 @@ def player_policy(params, step, sL, s):
             # TODO: add function for generating non-sym pretty clovers via UI            
             for clover in rare_clovers:
                 clover_intentions.append({"user": node, "clover": clover})
-    s = {"s": s} # wrap state for backwards compatibility 
     shuffle(clover_intentions)
     return {'clover_intentions': clover_intentions, 'active_players': active_players}
     
 
 def miner_policy(params, step, sL, s):
     params = params[0]
-    _s = s
+    timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
+    s['network'] = utils.getNetwork()
     clover_intentions = []
     cloverCount = len(s['clovers'])
-    timestep = _s['timestep'] + _s['s']['previous-timesteps']
+    timestep = timestep + s['previous-timesteps']
     for node in utils.get_nodes_by_type(s, 'miner'):
         miner = s['network'].nodes[node]
         miner_pct_online = market_settings['miner_pct_online'] # miner always online
@@ -118,17 +117,17 @@ def miner_policy(params, step, sL, s):
             }
             clover_intentions.append(clover_intention)
 
-    s = {"s": s}  # wrap state for backwards compatibility
     shuffle(clover_intentions)
     return {'clover_intentions': clover_intentions}
 
 
 def market_activity_policy(params, step, sL, s):
     params = params[0]
-    _s = s
+    timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
+    s['network'] = utils.getNetwork()
     g = s['network']
-    timestep = _s['timestep'] + _s['s']['previous-timesteps']
+    timestep = timestep + s['previous-timesteps']
     def get_sells(playerId):
         owned_clovers = utils.get_owned_clovers(g, playerId) #TODO: check performance
         owned_clovers_for_sale = []
@@ -161,7 +160,6 @@ def market_activity_policy(params, step, sL, s):
 
     def get_buys(playerId, all_clovers_for_sale):
         to_buy = []
-
         # params['duration'] is in minutes so dividing it by 60 makes it hourly
         hourly_attention_rate = math.floor(market_settings['hourly_attention_rate_for_buying_clovers'] * params['duration'] / 60)
         sample_size = hourly_attention_rate if len(all_clovers_for_sale) > hourly_attention_rate else len(all_clovers_for_sale)
@@ -195,7 +193,6 @@ def market_activity_policy(params, step, sL, s):
     for playerId in utils.get_nodes_by_type(s, 'player'):
         if params['player_active']():
             handleClovers = handleClovers + get_sells(playerId) + get_buys(playerId, all_clovers_for_sale)
-    s = {"s": s}  # wrap state for backwards compatibility
     # if we shuffle them here, the desire to buy will be different from calculated here
     # we could remedy this by moving the entire operation into the state update function
     # but then we will either have to run the loop on all players twice
