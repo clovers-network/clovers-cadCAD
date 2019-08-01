@@ -8,6 +8,7 @@ import os.path
 def initialize(params, step, sL, s, _input):
     print("timestep", s['timestep'])
     print("clovers", len(s['s']['clovers']))
+    
     if (s['timestep'] == 0):
         if os.path.exists("network.gpickle"):
             os.remove("network.gpickle")
@@ -21,6 +22,11 @@ def initialize(params, step, sL, s, _input):
             with open('./last-run.json', 'r') as f:
                 s = json.load(f)
                 s['s']['previous-timesteps'] = 0
+                
+    # reset timestepStats, as these are counters which should be reset
+    # at every new timestep
+    for key in s['s']['timestepStats'].keys():
+        s['s']['timestepStats'][key] = 0
     return ('s', s['s'])
 
 def save_file(params, step, sL, s, _input):

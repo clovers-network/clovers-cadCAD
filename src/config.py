@@ -82,6 +82,15 @@ initial_conditions = {
             'xySym': 394 + 13 + 4,             # total x = y symmetries
             'xnySym': 450 + 13 + 4,            # total x = -y symmetries
         },
+        'numBankClovers': 0,
+        'numPlayerClovers': 0,
+        'timestepStats': {
+            'cloversKept': 0,
+            'cloversReleased': 0,
+            'cloversTraded': 0,
+            'cloversBoughtFromBank': 0,
+            'cloversListedByPlayers': 0,
+        },
         'clovers': [],
         'players': [],
         'miners': [],

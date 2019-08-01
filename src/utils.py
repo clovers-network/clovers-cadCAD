@@ -14,6 +14,12 @@ import shutil
 # DG.add_edge('a', 'b')
 # print json_graph.dumps(DG)
 
+def savefig(fig, previousRuns, num_timesteps, name):
+    tempdir = "tmp"
+    os.makedirs(tempdir, exist_ok=True)
+
+    # plt must be in scope when function is called
+    fig.savefig(tempdir + '/' + 'from-' + str(previousRuns) + '-to-' + str(previousRuns + num_timesteps) + name + '.png')
 
 def getNetwork():
     if  os.path.exists('./network.gpickle'):
@@ -122,9 +128,13 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         player['supply'] -= price
         # if owner is bank, burn the coins
         if (owner_type(g, cloverId) == 'bank'):
+            s['timestepStats']['cloversBoughtFromBank'] += 1
             s['bc-totalSupply'] -= price
+            s['numBankClovers'] -= 1
+            s['numPlayerClovers'] += 1
         # else give the coins to the previous owner
         else:
+            s['timestepStats']['cloversTraded'] += 1
             currentOwnerId = get_owner(g, cloverId)
             currentOwner = g.nodes[currentOwnerId]
             currentOwner['supply'] += price
@@ -132,6 +142,7 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         g = set_owner(g, playerId, cloverId)
         g = set_price(g, cloverId, 0)
     else:
+        s['timestepStats']['cloversListedByPlayers'] += 1
         price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step)
         g = set_price(g, cloverId, price)
     return s
@@ -161,6 +172,8 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     
     if (clover_intention['intention'] == 'keep'):
         g = set_owner(g, userId, cloverId)
+        s['numPlayerClovers'] += 1
+        s['timestepStats']['cloversKept'] += 1
         if (price > user['supply']):
             costToBuy = calculatePriceForTokens(s, market_settings, price)
             user['supply'] = price + user['supply']
@@ -174,6 +187,8 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     else:
         if (rewardInEth > market_settings['register_clover_cost_in_eth']):
             g = set_owner(g, bankId, cloverId)
+            s['numBankClovers'] += 1
+            s['timestepStats']['cloversReleased'] += 1
             listingPrice = getCloverListingPrice(s, clover, market_settings)
             g = set_price(g, cloverId, listingPrice)
             user['supply'] += reward
