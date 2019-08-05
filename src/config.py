@@ -13,13 +13,13 @@ def miner_hashrate():
     return norm.rvs(loc=30, scale=5) #150/sec with standard deviation of 50
 
 market_settings = {
-    'bc-reserveRatio': .33333,  # bonding curve reserve ratio (connector weight)
-    'bc-virtualBalance': 33,  # bonding curve virtual balance
-    'bc-virtualSupply': 100000,   # bonding curve virtual supply  
+    'bc-reserveRatio': .75,  # bonding curve reserve ratio (connector weight)
+    'bc-virtualBalance': 10,  # bonding curve virtual balance
+    'bc-virtualSupply': 10000,   # bonding curve virtual supply  
     'priceMultiplier': 10,   # used to calculate cost to keep (multiplied by reward amt + base price)
     'base-price': 1,         # minimum price to keep any clover
-    'payMultiplier': 0.327,    # used to calculate reward (multiplied by ratio of rarity)
-    'initialSpend': 32,       # initial spend in ETH
+    'payMultiplier': 0.05, #327,    # used to calculate reward (multiplied by ratio of rarity)
+    'initialSpend': 45,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
     'initial_players': 20,
     'initial_miners': 1,
@@ -75,12 +75,12 @@ initial_conditions = {
         'bc-balance': 0,         # bonding curve collateral balance (ETH)
         'bc-totalSupply': 0,     # clubToken totalSupply
         'symmetries': {
-            'hasSymmetry': 1130,               # total number of symmetrical clovers
-            'rotSym': 39 + 4 + 4 + 13,         # total rotational symmetries
-            'y0Sym': 113 + 4 + 4,              # total y = 0 symmetries
-            'x0Sym': 112 + 4 + 4,              # total x = 0 symmetries
-            'xySym': 394 + 13 + 4,             # total x = y symmetries
-            'xnySym': 450 + 13 + 4,            # total x = -y symmetries
+            'hasSymmetry': 2705,               # total number of symmetrical clovers
+            'rotSym': 72 + 4 + 5 + 21,         # total rotational symmetries
+            'y0Sym': 221 + 4 + 5,              # total y = 0 symmetries
+            'x0Sym': 223 + 4 + 5,              # total x = 0 symmetries
+            'xySym': 1009 + 21 + 4,             # total x = y symmetries
+            'xnySym': 1154 + 21 + 4,            # total x = -y symmetries
         },
         'clovers': [],
         'players': [],
@@ -91,7 +91,7 @@ initial_conditions = {
 }
 
 def hasSymmetry(cloverCount):
-    base = 0.0001
+    base = 0.0002
 #     if (cloverCount > 1000):
 #         base = 0.00001
 #     if (cloverCount > 10000):
@@ -104,14 +104,14 @@ rarity = {
     'pretty':      0.01, # 1/100 clovers are "pretty"
     'rarePretty':  0.3, # 30/100 rare clovers are "pretty"k
     'symmetries': {
-        'rotSym':      39/1130,
-        'x0Sym':       112/1130,
-        'y0Sym':       113/1130,
-        'xySym':       394/1130,
-        'xnySym':      450/1130,
-        'diagRotSym':  13/1130,
-        'perpRotSym':  4/1130,
-        'allSym':      4/1130
+        'rotSym':      72/2705,
+        'x0Sym':       223/2705,
+        'y0Sym':       221/2705,
+        'xySym':       1009/2705,
+        'xnySym':      1154/2705,
+        'diagRotSym':  21/2705,
+        'perpRotSym':  5/2705,
+        'allSym':      4/2705
         # DATA FOR CALCULATING RARITIES:
         # total symms: 1130
         # total rot: 61 - 4 - 14 - 4 = 39
