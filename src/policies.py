@@ -59,7 +59,7 @@ def mine_clovers(num_hashes, step, cloverCount):
 
 
 def player_policy(params, step, sL, s):
-    params = params[0]
+    # params = params[0]
     active_players = []
     clover_intentions = []
     timestep = s['timestep']
@@ -92,7 +92,7 @@ def player_policy(params, step, sL, s):
     
 
 def miner_policy(params, step, sL, s):
-    params = params[0]
+    # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
     s['network'] = utils.getNetwork()
@@ -122,7 +122,7 @@ def miner_policy(params, step, sL, s):
 
 
 def market_activity_policy(params, step, sL, s):
-    params = params[0]
+    # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
     s['network'] = utils.getNetwork()

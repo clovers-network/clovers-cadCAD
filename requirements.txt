@@ -1,0 +1,12 @@
+Cython
+pandas
+pathos
+fn
+funcy
+tabulate
+pillow
+cadCAD
+jupyter
+matplotlib
+seaborn
+networkx
