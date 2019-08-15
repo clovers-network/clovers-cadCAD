@@ -5,10 +5,21 @@ from functools import reduce
 import json
 import os.path
 
+def with_network(s, params, updater):
+    state = s['s']
+    state['network'] = utils.getNetwork(params)
+
+    state = updater(state)
+
+    utils.saveNetwork(state['network'], params)
+    state['network'] = None
+
+    return ('s', state)
+
 def initialize(params, step, sL, s, _input):
-    print("Paramset: %s" % params)
-    print("    timestep", s['timestep'])
-    print("    clovers", len(s['s']['clovers']))
+    #print("Paramset: %s" % params)
+    #print("    timestep", s['timestep'])
+    #print("    clovers", len(s['s']['clovers']))
 
     if (s['timestep'] == 0):
         filename = utils.network_filename(params)
@@ -26,52 +37,42 @@ def initialize(params, step, sL, s, _input):
     return ('s', s['s'])
 
 def update_participant_pool(params, step, sL, s, _input):
-    s = s['s']
-    g = utils.getNetwork(params)
-    s['network'] = g
-    if 'new-players' in _input:
-        (g, players, miners) = utils.seed_network(_input['new-players'], 0, g, market_settings)
-        s['players'] = s['players'] + players
-    if 'new-miners' in _input:
-        (g, players, miners) = utils.seed_network(0, _input['new-miners'], g, market_settings)
-        s['miners'] = s['miners'] + miners
-    utils.saveNetwork(s['network'], params)
-    s['network'] = None
-    return ('s', s)
+    def participant_pool_updater(state):
+        g = state['network']
+        if 'new-players' in _input:
+            (g, players, miners) = utils.seed_network(_input['new-players'], 0, g, market_settings)
+            state['players'] = state['players'] + players
+        if 'new-miners' in _input:
+            (g, players, miners) = utils.seed_network(0, _input['new-miners'], g, market_settings)
+            state['miners'] = state['miners'] + miners
+        return state
 
-def save_file(params, step, sL, s, _input):
-    with open('last-run.json', 'w+') as f:  # writing JSON object
-        json.dump(s, f)
-    return ('s', s['s'])
+    return with_network(s, params, participant_pool_updater)
 
 def update_state(params, step, sL, s, _input):
-    _s = s
-    s = s['s']
-    s['network'] = utils.getNetwork(params)
-    if 'active_players' in _input:
-        s['network'] = updateActivePlayers(s, _input['active_players'])
-    if 'clover_intentions' in _input:
-        s = processCloverIntentions(s, _input['clover_intentions'], _s['timestep'])
-    if 'market_intentions' in _input:
-        s = processMarketIntentions(s, _input['market_intentions'], _s['timestep'])
-    utils.saveNetwork(s['network'], params)
-    s['network'] = None
-    return ('s', s)
+    def state_updater(state):
+        if 'active_players' in _input:
+            state['network'] = updateActivePlayers(state, _input['active_players'])
+        if 'clover_intentions' in _input:
+            state = processCloverIntentions(params, state, _input['clover_intentions'], s['timestep'])
+        if 'market_intentions' in _input:
+            state = processMarketIntentions(params, state, _input['market_intentions'], s['timestep'])
+        return state
+
+    return with_network(s, params, state_updater)
 
 def update_state_miner_policy(params, step, sL, s, _input):
-    _s = s
-    s = s['s']
-    s['network'] = utils.getNetwork(params)
-    if 'clover_intentions' in _input:
-        s = processCloverIntentions(s, _input['clover_intentions'], _s['timestep'])
-    s = processMinerCashOuts(s, market_settings)
-    utils.saveNetwork(s['network'], params)
-    s['network'] = None
-    return ('s', s)
-    
-def updateActivePlayers(s, active_players):
-    all_players = utils.get_nodes_by_type(s, 'player')
-    g = s['network']
+    def miner_policy_updater(state):
+        if 'clover_intentions' in _input:
+            state = processCloverIntentions(params, state, _input['clover_intentions'], s['timestep'])
+        state = processMinerCashOuts(state, market_settings)
+        return state
+
+    return with_network(s, params, miner_policy_updater)
+
+def updateActivePlayers(state, active_players):
+    all_players = utils.get_nodes_by_type(state, 'player')
+    g = state['network']
     for player in all_players:
         if player in active_players:
             g.nodes[player]['is_active'] = True
@@ -79,63 +80,34 @@ def updateActivePlayers(s, active_players):
             g.nodes[player]['is_active'] = False
     return g
 
-def processMarketIntentions(s, market_intentions, step):
+def processMarketIntentions(params, state, market_intentions, step):
     for market_intention in market_intentions:
-        s = utils.processMarketIntentions(s, market_intention, market_settings, step)
-    return s
+        state = utils.processMarketIntentions(state, market_intention, market_settings, step, params)
+    return state
 
-def processCloverIntentions(s, clover_intentions, step):
-    bankId = utils.get_nodes_by_type(s, "bank")
+def processCloverIntentions(params, state, clover_intentions, step):
+    bankId = utils.get_nodes_by_type(state, "bank")
     for clover_intention in clover_intentions:
-        s = utils.processBuysAndSells(s, clover_intention, market_settings, bankId, step)
-    return s
+        state = utils.processBuysAndSells(state, clover_intention, market_settings, bankId, step, params)
+    return state
 
-def processMinerCashOuts(s, marketSettings):
-    g = s['network']
+def processMinerCashOuts(state, marketSettings):
+    g = state['network']
 
-    minerNodes = utils.get_nodes_by_type(s, 'miner')
+    minerNodes = utils.get_nodes_by_type(state, 'miner')
 
     for node in minerNodes:
         miner = g.nodes[node]
-        cash_out_amount = utils.calculateCashout(s, marketSettings, miner['supply']) # returns ETH
+        cash_out_amount = utils.calculateCashout(state, marketSettings, miner['supply']) # returns ETH
         gas_fee = marketSettings['sell_coins_cost_in_eth']
 
         if (cash_out_amount - gas_fee) > miner['cash_out_threshold']:
             miner['eth-earned'] += cash_out_amount
-            s['bc-balance'] -= cash_out_amount
-            s['bc-totalSupply'] -= miner['supply']
+            state['bc-balance'] -= cash_out_amount
+            state['bc-totalSupply'] -= miner['supply']
             miner['eth-spent'] += gas_fee
             miner['supply'] = 0
 #         else:
 #             print('cash out not worh the gas')
-    return s
+    return state
 
-
- 
-# # State update functions
-# def bc_totalSupply(params, step, sL, s, _input):
-#     if _input['clover_intentions']:
-#         for clover_intention in _input['clover_intentions']:
-#             # updates s[bc-totalSupply], s[bc-balance], network[user] & network[clover]
-#             s = utils.processBuysAndSells(s, clover_intention, market_settings)
-#     return ('bc-totalSupply', s['bc-totalSupply'])
-
-# def update_symmetries(params, step, sL, s, _input):
-#     if _input['clover_intentions']:
-#         for clover_intention in _input['clover_intentions']:
-#             s = utils.processSymmetries(s, clover_intention['clover']) # could also use processBuysAndSells()
-#     return ('symmetries', s['symmetries'])
-
-# def bc_balance(params, step, sL, s, _input):
-#     if _input['clover_intentions']:
-#         for clover_intention in _input['clover_intentions']:
-#             # updates s[bc-totalSupply], s[bc-balance], network[user] & network[clover]
-#             s = utils.processBuysAndSells(s, clover_intention, market_settings)
-#     return ('bc-balance', s['bc-balance'])
-
-# def update_network(params, step, sL, s, _input):
-#     if _input['clover_intentions']:
-#         for clover_intention in _input['clover_intentions']:
-#             # updates s[bc-totalSupply], s[bc-balance], network[user] & network[clover]
-#             s = utils.processBuysAndSells(s, clover_intention, market_settings)
-#     return ('network', s['network'])

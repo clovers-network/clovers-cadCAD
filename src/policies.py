@@ -57,6 +57,11 @@ def mine_clovers(num_hashes, step, cloverCount):
     
     return clovers
 
+def player_active():
+    awake_likelihood = 0.6  # 60% probability of player being awake
+    active_likelihood = 0.05 # 3 hours of play in 7 day week
+    return rand() < (awake_likelihood*active_likelihood)
+
 
 def player_policy(params, step, sL, s):
     # params = params[0]
@@ -73,12 +78,13 @@ def player_policy(params, step, sL, s):
         player = s['network'].nodes[node]
         
         # is the player active in this timestep (probabalistic function)
-        if params['player_active']():
+        if player_active():
             active_players.append(node)
             
             # number of hashes calcuated by this player during the period
+            # assuming timestep of 1 hour
             num_hashes = player['hashrate'] \
-                         * (params['duration']*60) \
+                         *60*60 \
                          * player['player_active_percent']
             
             # returns an array of all rare clovers mined during the period
@@ -105,7 +111,7 @@ def miner_policy(params, step, sL, s):
         hash_rate = miner['hashrate']
         is_active = miner['is_active']
         
-        num_hashes = (hash_rate*params['duration']*60)*miner_pct_online*is_active
+        num_hashes = (hash_rate*60*60)*miner_pct_online*is_active
         
         clovers = mine_clovers(num_hashes, timestep, cloverCount)
         
@@ -160,14 +166,13 @@ def market_activity_policy(params, step, sL, s):
 
     def get_buys(playerId, all_clovers_for_sale):
         to_buy = []
-        # params['duration'] is in minutes so dividing it by 60 makes it hourly
-        hourly_attention_rate = math.floor(market_settings['hourly_attention_rate_for_buying_clovers'] * params['duration'] / 60)
+        hourly_attention_rate = math.floor(market_settings['hourly_attention_rate_for_buying_clovers'])
         sample_size = hourly_attention_rate if len(all_clovers_for_sale) > hourly_attention_rate else len(all_clovers_for_sale)
         random_clovers = sample(all_clovers_for_sale, sample_size)
         for random_clover_id in random_clovers:
             random_clover = g.nodes[random_clover_id]
             price = random_clover['price']
-            subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, timestep)
+            subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, timestep, params)
             market_buying_propensity = g.nodes[playerId]['market_buying_propensity']
             _rand = rand()
             if (subjectivePrice > price and market_buying_propensity > _rand):
@@ -191,7 +196,7 @@ def market_activity_policy(params, step, sL, s):
 
     handleClovers = []
     for playerId in utils.get_nodes_by_type(s, 'player'):
-        if params['player_active']():
+        if player_active():
             handleClovers = handleClovers + get_sells(playerId) + get_buys(playerId, all_clovers_for_sale)
     # if we shuffle them here, the desire to buy will be different from calculated here
     # we could remedy this by moving the entire operation into the state update function

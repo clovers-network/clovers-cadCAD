@@ -69,7 +69,7 @@ def genuid(g):
         found = not g.has_node(id)
     return id
 
-def getObjectiveValue(s, clover, market_settings, step):
+def getObjectiveValue(s, clover, market_settings, step, params):
     g = s['network']
     syms = s['symmetries']
     fresh = 1
@@ -82,14 +82,14 @@ def getObjectiveValue(s, clover, market_settings, step):
     if (clover['step'] + market_settings['new_clover_interval'] == step):
         fresh = market_settings['new_clover_fresh_factor']
         
-    listValue =  market_settings['base-price'] + getCloverReward(syms, clover, market_settings)
+    listValue =  market_settings['base-price'] + getCloverReward(syms, clover, params['payMultiplier'])
     pretty = clover['pretty'] #NOTE: Pretty must be able to come close to price multiplier
 
     return listValue * pretty * fresh        
 
 
-def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step):
-    cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step)
+def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params):
+    cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step, params)
     foo = [1, 2, 3]
 #     TODO: add back when time isn't an issue
 #     numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
@@ -107,7 +107,7 @@ def unprocessSymmetries(s, clover):
         s['symmetries'][sy] -= (1 if clover[sy] else 0)
     return s
 
-def processMarketIntentions(s, market_intention, market_settings, step):
+def processMarketIntentions(s, market_intention, market_settings, step, params):
     g = s['network']
     
     playerId = market_intention['playerId']
@@ -149,12 +149,12 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         g = set_price(g, cloverId, 0)
     else:
         s['timestepStats']['cloversListedByPlayers'] += 1
-        price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step)
+        price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step, params)
         g = set_price(g, cloverId, price)
     return s
 
 
-def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
+def processBuysAndSells(s, clover_intention, market_settings, bankId, step, params):
     g = s['network']
     userId = clover_intention['user']
     user = g.nodes[userId]
@@ -164,15 +164,15 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     
     cloverId = add_clover_to_network(s, clover)
 
-    subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step)
-    price = getCloverPrice(s, clover, market_settings)
+    subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params)
+    price = getCloverPrice(s, clover, market_settings, params)
     
     if (user['type'] == 'miner'):
         clover_intention['intention'] = 'sell'
     else:
         clover_intention['intention'] = "sell" if price > subjectivePrice else 'keep'
     
-    reward = getCloverReward(s['symmetries'], clover, market_settings)
+    reward = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
     rewardInEth = calculateCashout(s, market_settings, reward)
     g.nodes[cloverId]['reward'] = reward
     
@@ -195,7 +195,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
             g = set_owner(g, bankId, cloverId)
             s['numBankClovers'] += 1
             s['timestepStats']['cloversReleased'] += 1
-            listingPrice = getCloverListingPrice(s, clover, market_settings)
+            listingPrice = getCloverListingPrice(s, clover, market_settings, params)
             g = set_price(g, cloverId, listingPrice)
             user['supply'] += reward
             s['bc-totalSupply'] += reward
@@ -372,30 +372,30 @@ def calculateCurrentPrice(s, market_settings):
         return 0
     return collateral / (totalSupply * CW)
 
-def getCloverReward(syms, clover, market_settings):
+def getCloverReward(syms, clover, payMultiplier):
     if not clover['hasSymmetry']:
         return 0
     totalRewards = 0
     allSymms = syms['rotSym'] + syms['y0Sym'] + syms['x0Sym'] + syms['xySym'] + syms['xnySym']
     if clover['rotSym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['rotSym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['rotSym'] + 1)
     if clover['y0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['y0Sym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['y0Sym'] + 1)
     if clover['x0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['x0Sym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['x0Sym'] + 1)
     if clover['xySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['xySym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['xySym'] + 1)
     if clover['xnySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['xnySym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['xnySym'] + 1)
     return totalRewards
 
-def getCloverListingPrice(s, clover, market_settings):
-    rewardAmount = getCloverReward(s['symmetries'], clover, market_settings)
+def getCloverListingPrice(s, clover, market_settings, params):
+    rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
     payAmount = market_settings['base-price'] + (rewardAmount * market_settings['priceMultiplier'])
     return payAmount
 
-def getCloverPrice(s, clover, market_settings):
-    rewardAmount = getCloverReward(s['symmetries'], clover, market_settings)
+def getCloverPrice(s, clover, market_settings, params):
+    rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
     payAmount = market_settings['base-price'] + rewardAmount
     return payAmount
 
