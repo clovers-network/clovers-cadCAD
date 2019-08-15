@@ -23,7 +23,7 @@ market_settings = {
     'stdDev': 3,               # standard deviation of subjective price to objective price
     'initial_players': 20,
     'initial_miners': 1,
-    'register_clover_cost_in_eth': 0.001313,
+    'register_clover_cost_in_eth': 0.004,
     'add_to_market_cost_in_eth': 0.00054,
     'buy_from_market_cost_in_eth': 0.002805,
     'sell_coins_cost_in_eth': 0.001012,

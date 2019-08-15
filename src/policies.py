@@ -64,7 +64,7 @@ def player_policy(params, step, sL, s):
     clover_intentions = []
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
-    s['network'] = utils.getNetwork()
+    s['network'] = utils.getNetwork(params)
     cloverCount = len(s['clovers'])
     timestep = timestep + s['previous-timesteps']
     # iterate through players in a given timestep period and their individual logics
@@ -95,7 +95,7 @@ def miner_policy(params, step, sL, s):
     # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
-    s['network'] = utils.getNetwork()
+    s['network'] = utils.getNetwork(params)
     clover_intentions = []
     cloverCount = len(s['clovers'])
     timestep = timestep + s['previous-timesteps']
@@ -125,7 +125,7 @@ def market_activity_policy(params, step, sL, s):
     # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
-    s['network'] = utils.getNetwork()
+    s['network'] = utils.getNetwork(params)
     g = s['network']
     timestep = timestep + s['previous-timesteps']
     def get_sells(playerId):

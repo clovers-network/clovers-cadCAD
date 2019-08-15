@@ -9,10 +9,14 @@ from networkx.readwrite import json_graph
 import os.path
 import json
 import shutil
+import threading
 
 # DG = nx.DiGraph()
 # DG.add_edge('a', 'b')
 # print json_graph.dumps(DG)
+
+def network_filename(params):
+    return "network-%s.gpickle" % hash(frozenset(params.items()))
 
 def savefig(fig, previousRuns, num_timesteps, name):
     tempdir = "tmp"
@@ -21,9 +25,10 @@ def savefig(fig, previousRuns, num_timesteps, name):
     # plt must be in scope when function is called
     fig.savefig(tempdir + '/' + 'from-' + str(previousRuns) + '-to-' + str(previousRuns + num_timesteps) + name + '.png')
 
-def getNetwork():
-    if  os.path.exists('./network.gpickle'):
-        g = nx.read_gpickle("network.gpickle")
+def getNetwork(params):
+    file_name = network_filename(params)
+    if  os.path.exists(file_name):
+        g = nx.read_gpickle(file_name)
 #         with open('./network.json', 'r') as f:
 #             g = json.load(f)
 #             g = fromDICT(g)
@@ -31,10 +36,11 @@ def getNetwork():
         g = nx.DiGraph()
     return g
 
-def saveNetwork(g):
-    if  os.path.exists('./network.gpickle'):
-        shutil.copy('network.gpickle', 'network.gpickle.bak')
-    nx.write_gpickle(g, "network.gpickle")
+def saveNetwork(g, params):
+    file_name = network_filename(params)
+    if  os.path.exists(file_name):
+        shutil.copy(file_name, file_name + '.bak')
+    nx.write_gpickle(g, file_name)
 #     _g = toDICT(g)
 #     with open('./network.json', 'w+') as f:  # writing JSON object
 #         json.dump(_g, f)
@@ -251,7 +257,8 @@ def initialize_network(market_settings):
     bank = genuid(g)
     g.add_node(bank)
     g.nodes[bank]['type'] = "bank"
-    
+
+
     return (g, players, miners, bank)
 
 #helper functions
