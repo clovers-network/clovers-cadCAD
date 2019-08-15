@@ -5,17 +5,6 @@ from functools import reduce
 import json
 import os.path
 
-
-def with_network(params, fn):
-    g = utils.getNetwork(params)
-
-    s, g = fn(g)
-    utils.saveNetwork(s['network'], params)
-    s['network'] = None
-
-    return ('s', s['s'])
-
-
 def initialize(params, step, sL, s, _input):
     print("Paramset: %s" % params)
     print("    timestep", s['timestep'])
@@ -38,19 +27,17 @@ def initialize(params, step, sL, s, _input):
 
 def update_participant_pool(params, step, sL, s, _input):
     s = s['s']
-
-    def participant_pool_updater(g):
-        s['network'] = g
-        if 'new-players' in _input:
-            (g, players, miners) = utils.seed_network(_input['new-players'], 0, g, market_settings)
-            s['players'] = s['players'] + players
-        if 'new-miners' in _input:
-            (g, players, miners) = utils.seed_network(0, _input['new-miners'], g, market_settings)
-            s['miners'] = s['miners'] + miners
-        return (s, g)
-
-    return with_network(params, particpant_pool_updater)
-
+    g = utils.getNetwork(params)
+    s['network'] = g
+    if 'new-players' in _input:
+        (g, players, miners) = utils.seed_network(_input['new-players'], 0, g, market_settings)
+        s['players'] = s['players'] + players
+    if 'new-miners' in _input:
+        (g, players, miners) = utils.seed_network(0, _input['new-miners'], g, market_settings)
+        s['miners'] = s['miners'] + miners
+    utils.saveNetwork(s['network'], params)
+    s['network'] = None
+    return ('s', s)
 
 def save_file(params, step, sL, s, _input):
     with open('last-run.json', 'w+') as f:  # writing JSON object
