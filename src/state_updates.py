@@ -24,9 +24,9 @@ def initialize(params, step, sL, s, _input):
     if (s['timestep'] == 0):
         filename = utils.network_filename(params)
         if os.path.exists(filename):
-            os.remove("network.gpickle")
+            os.remove(filename)
 
-        s = utils.initialize(market_settings, s['s'])
+        s = utils.initialize(params, market_settings, s['s'])
         utils.saveNetwork(s['s']['network'], params)
         s['s']['network'] = None
 
@@ -65,7 +65,7 @@ def update_state_miner_policy(params, step, sL, s, _input):
     def miner_policy_updater(state):
         if 'clover_intentions' in _input:
             state = processCloverIntentions(params, state, _input['clover_intentions'], s['timestep'])
-        state = processMinerCashOuts(state, market_settings)
+        state = processMinerCashOuts(params, state, market_settings)
         return state
 
     return with_network(s, params, miner_policy_updater)
@@ -91,14 +91,14 @@ def processCloverIntentions(params, state, clover_intentions, step):
         state = utils.processBuysAndSells(state, clover_intention, market_settings, bankId, step, params)
     return state
 
-def processMinerCashOuts(state, marketSettings):
+def processMinerCashOuts(params, state, marketSettings):
     g = state['network']
 
     minerNodes = utils.get_nodes_by_type(state, 'miner')
 
     for node in minerNodes:
         miner = g.nodes[node]
-        cash_out_amount = utils.calculateCashout(state, marketSettings, miner['supply']) # returns ETH
+        cash_out_amount = utils.calculateCashout(state, params, miner['supply']) # returns ETH
         gas_fee = marketSettings['sell_coins_cost_in_eth']
 
         if (cash_out_amount - gas_fee) > miner['cash_out_threshold']:

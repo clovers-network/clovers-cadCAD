@@ -27,7 +27,7 @@ def to_df(raw_result, params):
             clover[key] = True
             reward = utils.getCloverReward(s['symmetries'], clover, params['payMultiplier'])
             new_cols['reward-' + key] = reward
-            cashout = utils.calculateCashout(s, market_settings, reward)
+            cashout = utils.calculateCashout(s, params, reward)
             if (cashout == 0):
                 cashout = .001311
             new_cols['reward-eth-' + key] = cashout
@@ -45,10 +45,10 @@ def to_df(raw_result, params):
         new_cols['players'] = len(players)
         new_cols['clovers'] = len(clovers)
         new_cols.update(s['symmetries'])
-        price = utils.calculateCurrentPrice(s, market_settings)
+        price = utils.calculateCurrentPrice(s, params)
         if (price == 0):
 #             _s = raw_results[(row['timestep'] - 1) * len(partial_state_update_blocks)]
-#             price = utils.calculateCurrentPrice(_s, market_settings)
+#             price = utils.calculateCurrentPrice(_s, params)
             price = 0.000803
         new_cols['coin-price'] = price
         new_cols['coin-price-usd'] = new_cols['coin-price'] * 300
@@ -76,14 +76,27 @@ def to_df(raw_result, params):
 
     return df
 
-def graph_clovers_metrics_backup(results, graphsize=(15,8), monte_run=0, save=False):
+def make_title_bar(results, graphsize=(15,8)):
     num_results = len(results)
     fig = plt.figure(figsize=(graphsize[0]*num_results, graphsize[1]))
     axs = fig.subplots(1, num_results)
 
-    for (i, result) in enumerage(results):
-        df.plot('timestep', ['cloversKept', 'cloversReleased', 'coin-price'], secondary_y=['coin-price'], ax=axs[i])
-# utils.savefig(fig, previousRuns, timesteps_per_run, 'hrs-price-graph')
+    for (i, res) in enumerate(results):
+
+        ax = axs if num_results == 1 else axs[i]
+        params = res['simulation_parameters']['M']
+        paramsFormatted = str(params).replace(', ', ',\n')
+
+        ax.text(0.05, 0.5,
+                paramsFormatted,
+                horizontalalignment='left',
+                verticalalignment='center',
+                transform=ax.transAxes,
+                fontsize=30,
+                bbox=dict(boxstyle="round",
+                  fc=(0.7, 1., 0.7),
+                ))
+        ax.axis('off')
 
 def make_graph(results, graph, graphsize=(15,8), monte_run=0, save=False, paramTitle=False):
     num_results = len(results)
@@ -148,7 +161,7 @@ def make_final_state_graph(results, graphsize=(15,8)):
         plot_data = [
             {
                 "nodes": players,
-                "title": "Final Balance (ETH & CLV) of Players %s" % params,
+                "title": "Final Balance (ETH & CLV) of Players",
                 "x_label": "Player",
                 "axis": (axs[0] if len(results) == 1 else axs[0,i])
             },

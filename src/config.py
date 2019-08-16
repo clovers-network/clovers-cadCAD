@@ -13,12 +13,6 @@ def miner_hashrate():
     return norm.rvs(loc=30, scale=5) #150/sec with standard deviation of 50
 
 market_settings = {
-    'bc-reserveRatio': .33333,  # bonding curve reserve ratio (connector weight)
-    'bc-virtualBalance': 33,  # bonding curve virtual balance
-    'bc-virtualSupply': 100000,   # bonding curve virtual supply  
-    'priceMultiplier': 10,   # used to calculate cost to keep (multiplied by reward amt + base price)
-    'base-price': 1,         # minimum price to keep any clover
-    'payMultiplier': 0.327,    # used to calculate reward (multiplied by ratio of rarity)
     'initialSpend': 32,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
     'initial_players': 20,

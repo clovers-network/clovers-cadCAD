@@ -1,4 +1,3 @@
-Cython
 pandas
 pathos
 fn

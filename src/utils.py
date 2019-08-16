@@ -11,12 +11,8 @@ import json
 import shutil
 import threading
 
-# DG = nx.DiGraph()
-# DG.add_edge('a', 'b')
-# print json_graph.dumps(DG)
-
 def network_filename(params):
-    return "network-%s.gpickle" % hash(frozenset(params.items()))
+    return "tmp/network-%s.gpickle" % hash(frozenset(params.items()))
 
 def savefig(fig, previousRuns, num_timesteps, name):
     tempdir = "tmp"
@@ -29,9 +25,6 @@ def getNetwork(params):
     file_name = network_filename(params)
     if  os.path.exists(file_name):
         g = nx.read_gpickle(file_name)
-#         with open('./network.json', 'r') as f:
-#             g = json.load(f)
-#             g = fromDICT(g)
     else:
         g = nx.DiGraph()
     return g
@@ -81,8 +74,9 @@ def getObjectiveValue(s, clover, market_settings, step, params):
     # if super fresh boost by 120%
     if (clover['step'] + market_settings['new_clover_interval'] == step):
         fresh = market_settings['new_clover_fresh_factor']
-        
-    listValue =  market_settings['base-price'] + getCloverReward(syms, clover, params['payMultiplier'])
+
+    listValue =  params['basePrice'] + getCloverReward(syms, clover, params['payMultiplier'])
+    # ^ should this also be multiplied by priceMultiplier???? (see line 390)
     pretty = clover['pretty'] #NOTE: Pretty must be able to come close to price multiplier
 
     return listValue * pretty * fresh        
@@ -124,7 +118,7 @@ def processMarketIntentions(s, market_intention, market_settings, step, params):
         player = g.nodes[playerId]
         # if player doesn't have enough coins, buy some
         if (price > player['supply']):
-            costToBuy = calculatePriceForTokens(s, market_settings, price)
+            costToBuy = calculatePriceForTokens(s, params, price)
             player['supply'] = price + player['supply']
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
@@ -173,7 +167,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
         clover_intention['intention'] = "sell" if price > subjectivePrice else 'keep'
     
     reward = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
-    rewardInEth = calculateCashout(s, market_settings, reward)
+    rewardInEth = calculateCashout(s, params, reward)
     g.nodes[cloverId]['reward'] = reward
     
     if (clover_intention['intention'] == 'keep'):
@@ -181,7 +175,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
         s['numPlayerClovers'] += 1
         s['timestepStats']['cloversKept'] += 1
         if (price > user['supply']):
-            costToBuy = calculatePriceForTokens(s, market_settings, price)
+            costToBuy = calculatePriceForTokens(s, params, price)
             user['supply'] = price + user['supply']
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
@@ -205,9 +199,9 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
             delete_clover(s, cloverId)
     return s
 
-def initialize(market_settings, conditions):
+def initialize(params, market_settings, conditions):
     def init_ts(s):
-        return calculatePurchaseReturn(s, market_settings, market_settings["initialSpend"])
+        return calculatePurchaseReturn(s, params, market_settings["initialSpend"])
 
     conditions['bc-balance'] = market_settings["initialSpend"]
     conditions['bc-totalSupply'] = init_ts(conditions)
@@ -328,32 +322,35 @@ def set_price(g, cloverId, price):
 def getSlope(totalSupply, collateral, CW):
     return collateral / (CW * totalSupply ** (1 / CW))
 
-def calculatePriceForTokens(s, market_settings, amount):
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+def calculatePriceForTokens(s, params, amount):
+    def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
+        return collateral * ((amount / totalSupply + 1)**(1/CW)-1)
+
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
+
     return _calculatePriceForTokens(totalSupply, collateral, CW, amount)
 
-def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
-    return collateral * ((amount / totalSupply + 1)**(1/CW)-1)
 
 def getPower(CW):
     return 1 / CW -1
-    
-def calculatePurchaseReturn(s, market_settings, amount):
-    totalSupply = s['bc-totalSupply'] + market_settings["bc-virtualSupply"]
-    collateral = s['bc-balance'] + market_settings["bc-virtualBalance"]
-    CW = market_settings["bc-reserveRatio"]
+
+def calculatePurchaseReturn(s, params, amount):
+    print(params)
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params["bc-reserveRatio"]
     if (s['bc-balance'] <= 0):
         return 0
     return totalSupply * ((1 + amount / collateral)**CW-1)
 
-def calculateCashout(s, market_settings, amount):
+def calculateCashout(s, params, amount):
     if (s['bc-balance'] <= 0):
         return 0
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
     result = calculateSellReturn(totalSupply, collateral, CW, amount)
     if (result > s['bc-balance']):
         result = s['bc-balance']
@@ -364,10 +361,10 @@ def calculateSellReturn(totalSupply, collateral, CW, amount):
         return 0
     return collateral * (1 - (1 - amount / totalSupply)**(1/CW))
 
-def calculateCurrentPrice(s, market_settings):
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+def calculateCurrentPrice(s, params):
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
     if (s['bc-balance'] <= 0):
         return 0
     return collateral / (totalSupply * CW)
@@ -391,12 +388,13 @@ def getCloverReward(syms, clover, payMultiplier):
 
 def getCloverListingPrice(s, clover, market_settings, params):
     rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
-    payAmount = market_settings['base-price'] + (rewardAmount * market_settings['priceMultiplier'])
+    payAmount = params['basePrice'] + (rewardAmount * params['priceMultiplier'])
     return payAmount
 
 def getCloverPrice(s, clover, market_settings, params):
     rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
-    payAmount = market_settings['base-price'] + rewardAmount
+    payAmount = params['basePrice'] + rewardAmount
+    # ^ should this be multiplied by price multiplier??
     return payAmount
 
 def getSymmetry(symmetryRarities):
