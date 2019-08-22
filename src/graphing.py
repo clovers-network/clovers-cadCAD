@@ -44,6 +44,7 @@ def to_df(raw_result, params):
         new_cols['miners'] = len(miners)
         new_cols['players'] = len(players)
         new_cols['clovers'] = len(clovers)
+        new_cols['slope'] = utils.calculateSlope(s, params)
         new_cols.update(s['symmetries'])
         price = utils.calculateCurrentPrice(s, params)
         if (price == 0):
@@ -142,6 +143,13 @@ def rewards_per_sym_eth_graph(df, params, axs):
     title = "Rewards per Sym (ETH) vs Mining Cost %s" % params
     return df.plot('timestep', ['reward-eth-rotSym', 'reward-eth-x0Sym', 'reward-eth-y0Sym', 'reward-eth-xySym', 'reward-eth-xnySym', 'cost-to-mine'], ax=axs, title=title)
 
+def bc_slope_graph(df, params, axs):
+    title = "Slope of Bonding Curve Graph"
+    return df.plot('timestep', ['slope'], ax=axs, title=title)
+
+def clovers_by_owner_graph(df, params, axs):
+    title = "Player Clovers vs Bank Clovers"
+    return df.plot('timestep', ['numBankClovers', 'numPlayerClovers'], ax=axs, title=title)
 
 def make_final_state_graph(results, graphsize=(15,8)):
     num_results = len(results)
@@ -182,3 +190,45 @@ def make_final_state_graph(results, graphsize=(15,8)):
             ax_2y.set_ylabel("CloverCoin", labelpad=32)
             ax_2y.set_yticks([])
         # utils.savefig(fig, previousRuns, timesteps_per_run, 'hrs-eth-graph')
+
+
+def make_param_runs_graph(results, param_keys, col_names_to_graph, graphsize=(15,8), monte_runs=0, save=False):
+    num_graphs = len(col_names_to_graph)
+    fig = plt.figure(figsize=(graphsize[0]*num_graphs, graphsize[1]))
+    axs = fig.subplots(1, num_graphs)
+
+    df = pd.DataFrame()
+
+    for (i, res) in enumerate(results):
+
+        params = res['simulation_parameters']['M']
+
+        paramset_df = to_df(res['result'], params)[['timestep'] + col_names_to_graph]
+
+        paramset_name = ", ".join(["%s: %s" % (k, v) for k, v in params.items() if k in param_keys])
+
+        paramset_df['params'] = paramset_name
+
+        df = df.append(paramset_df)
+
+    df.set_index('timestep', inplace=True)
+
+    for (i, col_name) in enumerate(col_names_to_graph):
+        ax = axs if num_graphs == 1 else axs[i]
+
+        df.groupby('params')[col_name].plot(legend=True, ax=ax, title=col_name)
+
+def make_graph(results, graph, graphsize=(15,8), monte_run=0, save=False, paramTitle=False):
+    num_results = len(results)
+    fig = plt.figure(figsize=(graphsize[0]*num_results, graphsize[1]))
+    axs = fig.subplots(1, num_results)
+
+    for (i, res) in enumerate(results):
+
+        params = res['simulation_parameters']['M']
+
+
+        df = to_df(res['result'], params)
+        pText = params if paramTitle else ""
+
+        graph(df, pText, axs) if num_results == 1 else graph(df, pText, axs[i])

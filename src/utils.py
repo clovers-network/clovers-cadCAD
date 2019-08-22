@@ -305,7 +305,7 @@ def get_owner(g, cloverId):
     # owners and return error if multiple owners exist
     # also, we should throw exception if no owner found
     for owner in g.predecessors(cloverId):
-        return owner  
+        return owner
 
 def set_owner(g, ownerId, cloverId):
     old_owner = get_owner(g, cloverId)
@@ -318,9 +318,17 @@ def set_owner(g, ownerId, cloverId):
 def set_price(g, cloverId, price):
     g.nodes[cloverId]['price'] = price
     return g
-    
-def getSlope(totalSupply, collateral, CW):
-    return collateral / (CW * totalSupply ** (1 / CW))
+
+def calculateSlope(s, params):
+    def getSlope(totalSupply, collateral, CW):
+        return collateral / (CW * totalSupply ** (1 / CW))
+
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
+
+    return getSlope(totalSupply, collateral, CW)
+
 
 def calculatePriceForTokens(s, params, amount):
     def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
