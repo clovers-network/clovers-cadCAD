@@ -9,26 +9,31 @@ from networkx.readwrite import json_graph
 import os.path
 import json
 import shutil
+import threading
 
-# DG = nx.DiGraph()
-# DG.add_edge('a', 'b')
-# print json_graph.dumps(DG)
+def network_filename(params):
+    return "tmp/network-%s.gpickle" % hash(frozenset(params.items()))
 
+def savefig(fig, previousRuns, num_timesteps, name):
+    tempdir = "tmp"
+    os.makedirs(tempdir, exist_ok=True)
 
-def getNetwork():
-    if  os.path.exists('./network.gpickle'):
-        g = nx.read_gpickle("network.gpickle")
-#         with open('./network.json', 'r') as f:
-#             g = json.load(f)
-#             g = fromDICT(g)
+    # plt must be in scope when function is called
+    fig.savefig(tempdir + '/' + 'from-' + str(previousRuns) + '-to-' + str(previousRuns + num_timesteps) + name + '.png')
+
+def getNetwork(params):
+    file_name = network_filename(params)
+    if  os.path.exists(file_name):
+        g = nx.read_gpickle(file_name)
     else:
         g = nx.DiGraph()
     return g
 
-def saveNetwork(g):
-    if  os.path.exists('./network.gpickle'):
-        shutil.copy('network.gpickle', 'network.gpickle.bak')
-    nx.write_gpickle(g, "network.gpickle")
+def saveNetwork(g, params):
+    file_name = network_filename(params)
+    if  os.path.exists(file_name):
+        shutil.copy(file_name, file_name + '.bak')
+    nx.write_gpickle(g, file_name)
 #     _g = toDICT(g)
 #     with open('./network.json', 'w+') as f:  # writing JSON object
 #         json.dump(_g, f)
@@ -57,7 +62,7 @@ def genuid(g):
         found = not g.has_node(id)
     return id
 
-def getObjectiveValue(s, clover, market_settings, step):
+def getObjectiveValue(s, clover, market_settings, step, params):
     g = s['network']
     syms = s['symmetries']
     fresh = 1
@@ -69,15 +74,16 @@ def getObjectiveValue(s, clover, market_settings, step):
     # if super fresh boost by 120%
     if (clover['step'] + market_settings['new_clover_interval'] == step):
         fresh = market_settings['new_clover_fresh_factor']
-        
-    listValue =  market_settings['base-price'] + getCloverReward(syms, clover, market_settings)
+
+    listValue =  params['basePrice'] + getCloverReward(syms, clover, params['payMultiplier'])
+    # ^ should this also be multiplied by priceMultiplier???? (see line 390)
     pretty = clover['pretty'] #NOTE: Pretty must be able to come close to price multiplier
 
     return listValue * pretty * fresh        
 
 
-def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step):
-    cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step)
+def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params):
+    cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step, params)
     foo = [1, 2, 3]
 #     TODO: add back when time isn't an issue
 #     numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
@@ -95,7 +101,7 @@ def unprocessSymmetries(s, clover):
         s['symmetries'][sy] -= (1 if clover[sy] else 0)
     return s
 
-def processMarketIntentions(s, market_intention, market_settings, step):
+def processMarketIntentions(s, market_intention, market_settings, step, params):
     g = s['network']
     
     playerId = market_intention['playerId']
@@ -112,7 +118,7 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         player = g.nodes[playerId]
         # if player doesn't have enough coins, buy some
         if (price > player['supply']):
-            costToBuy = calculatePriceForTokens(s, market_settings, price)
+            costToBuy = calculatePriceForTokens(s, params, price)
             player['supply'] = price + player['supply']
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
@@ -122,9 +128,13 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         player['supply'] -= price
         # if owner is bank, burn the coins
         if (owner_type(g, cloverId) == 'bank'):
+            s['timestepStats']['cloversBoughtFromBank'] += 1
             s['bc-totalSupply'] -= price
+            s['numBankClovers'] -= 1
+            s['numPlayerClovers'] += 1
         # else give the coins to the previous owner
         else:
+            s['timestepStats']['cloversTraded'] += 1
             currentOwnerId = get_owner(g, cloverId)
             currentOwner = g.nodes[currentOwnerId]
             currentOwner['supply'] += price
@@ -132,12 +142,13 @@ def processMarketIntentions(s, market_intention, market_settings, step):
         g = set_owner(g, playerId, cloverId)
         g = set_price(g, cloverId, 0)
     else:
-        price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step)
+        s['timestepStats']['cloversListedByPlayers'] += 1
+        price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step, params)
         g = set_price(g, cloverId, price)
     return s
 
 
-def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
+def processBuysAndSells(s, clover_intention, market_settings, bankId, step, params):
     g = s['network']
     userId = clover_intention['user']
     user = g.nodes[userId]
@@ -147,22 +158,24 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     
     cloverId = add_clover_to_network(s, clover)
 
-    subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step)
-    price = getCloverPrice(s, clover, market_settings)
+    subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params)
+    price = getCloverPrice(s, clover, market_settings, params)
     
     if (user['type'] == 'miner'):
         clover_intention['intention'] = 'sell'
     else:
         clover_intention['intention'] = "sell" if price > subjectivePrice else 'keep'
     
-    reward = getCloverReward(s['symmetries'], clover, market_settings)
-    rewardInEth = calculateCashout(s, market_settings, reward)
+    reward = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
+    rewardInEth = calculateCashout(s, params, reward)
     g.nodes[cloverId]['reward'] = reward
     
     if (clover_intention['intention'] == 'keep'):
         g = set_owner(g, userId, cloverId)
+        s['numPlayerClovers'] += 1
+        s['timestepStats']['cloversKept'] += 1
         if (price > user['supply']):
-            costToBuy = calculatePriceForTokens(s, market_settings, price)
+            costToBuy = calculatePriceForTokens(s, params, price)
             user['supply'] = price + user['supply']
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
@@ -174,7 +187,9 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
     else:
         if (rewardInEth > market_settings['register_clover_cost_in_eth']):
             g = set_owner(g, bankId, cloverId)
-            listingPrice = getCloverListingPrice(s, clover, market_settings)
+            s['numBankClovers'] += 1
+            s['timestepStats']['cloversReleased'] += 1
+            listingPrice = getCloverListingPrice(s, clover, market_settings, params)
             g = set_price(g, cloverId, listingPrice)
             user['supply'] += reward
             s['bc-totalSupply'] += reward
@@ -184,9 +199,9 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step):
             delete_clover(s, cloverId)
     return s
 
-def initialize(market_settings, conditions):
+def initialize(params, market_settings, conditions):
     def init_ts(s):
-        return calculatePurchaseReturn(s, market_settings, market_settings["initialSpend"])
+        return calculatePurchaseReturn(s, params, market_settings["initialSpend"])
 
     conditions['bc-balance'] = market_settings["initialSpend"]
     conditions['bc-totalSupply'] = init_ts(conditions)
@@ -236,7 +251,8 @@ def initialize_network(market_settings):
     bank = genuid(g)
     g.add_node(bank)
     g.nodes[bank]['type'] = "bank"
-    
+
+
     return (g, players, miners, bank)
 
 #helper functions
@@ -289,7 +305,7 @@ def get_owner(g, cloverId):
     # owners and return error if multiple owners exist
     # also, we should throw exception if no owner found
     for owner in g.predecessors(cloverId):
-        return owner  
+        return owner
 
 def set_owner(g, ownerId, cloverId):
     old_owner = get_owner(g, cloverId)
@@ -302,36 +318,47 @@ def set_owner(g, ownerId, cloverId):
 def set_price(g, cloverId, price):
     g.nodes[cloverId]['price'] = price
     return g
-    
-def getSlope(totalSupply, collateral, CW):
-    return collateral / (CW * totalSupply ** (1 / CW))
 
-def calculatePriceForTokens(s, market_settings, amount):
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+def calculateSlope(s, params):
+    def getSlope(totalSupply, collateral, CW):
+        return collateral / (CW * totalSupply ** (1 / CW))
+
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
+
+    return getSlope(totalSupply, collateral, CW)
+
+
+def calculatePriceForTokens(s, params, amount):
+    def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
+        return collateral * ((amount / totalSupply + 1)**(1/CW)-1)
+
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
+
     return _calculatePriceForTokens(totalSupply, collateral, CW, amount)
 
-def _calculatePriceForTokens(totalSupply, collateral, CW, amount):
-    return collateral * ((amount / totalSupply + 1)**(1/CW)-1)
 
 def getPower(CW):
     return 1 / CW -1
-    
-def calculatePurchaseReturn(s, market_settings, amount):
-    totalSupply = s['bc-totalSupply'] + market_settings["bc-virtualSupply"]
-    collateral = s['bc-balance'] + market_settings["bc-virtualBalance"]
-    CW = market_settings["bc-reserveRatio"]
+
+def calculatePurchaseReturn(s, params, amount):
+    print(params)
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params["bc-reserveRatio"]
     if (s['bc-balance'] <= 0):
         return 0
     return totalSupply * ((1 + amount / collateral)**CW-1)
 
-def calculateCashout(s, market_settings, amount):
+def calculateCashout(s, params, amount):
     if (s['bc-balance'] <= 0):
         return 0
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
     result = calculateSellReturn(totalSupply, collateral, CW, amount)
     if (result > s['bc-balance']):
         result = s['bc-balance']
@@ -342,39 +369,40 @@ def calculateSellReturn(totalSupply, collateral, CW, amount):
         return 0
     return collateral * (1 - (1 - amount / totalSupply)**(1/CW))
 
-def calculateCurrentPrice(s, market_settings):
-    totalSupply = s['bc-totalSupply'] + market_settings['bc-virtualSupply']
-    collateral = s['bc-balance'] + market_settings['bc-virtualBalance']
-    CW = market_settings['bc-reserveRatio']
+def calculateCurrentPrice(s, params):
+    totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
+    collateral = s['bc-balance'] + params['bc-virtualBalance']
+    CW = params['bc-reserveRatio']
     if (s['bc-balance'] <= 0):
         return 0
     return collateral / (totalSupply * CW)
 
-def getCloverReward(syms, clover, market_settings):
+def getCloverReward(syms, clover, payMultiplier):
     if not clover['hasSymmetry']:
         return 0
     totalRewards = 0
     allSymms = syms['rotSym'] + syms['y0Sym'] + syms['x0Sym'] + syms['xySym'] + syms['xnySym']
     if clover['rotSym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['rotSym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['rotSym'] + 1)
     if clover['y0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['y0Sym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['y0Sym'] + 1)
     if clover['x0Sym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['x0Sym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['x0Sym'] + 1)
     if clover['xySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['xySym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['xySym'] + 1)
     if clover['xnySym']:
-        totalRewards += market_settings['payMultiplier'] * (1 + allSymms) / (syms['xnySym'] + 1)
+        totalRewards += payMultiplier * (1 + allSymms) / (syms['xnySym'] + 1)
     return totalRewards
 
-def getCloverListingPrice(s, clover, market_settings):
-    rewardAmount = getCloverReward(s['symmetries'], clover, market_settings)
-    payAmount = market_settings['base-price'] + (rewardAmount * market_settings['priceMultiplier'])
+def getCloverListingPrice(s, clover, market_settings, params):
+    rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
+    payAmount = params['basePrice'] + (rewardAmount * params['priceMultiplier'])
     return payAmount
 
-def getCloverPrice(s, clover, market_settings):
-    rewardAmount = getCloverReward(s['symmetries'], clover, market_settings)
-    payAmount = market_settings['base-price'] + rewardAmount
+def getCloverPrice(s, clover, market_settings, params):
+    rewardAmount = getCloverReward(s['symmetries'], clover, params['payMultiplier'])
+    payAmount = params['basePrice'] + rewardAmount
+    # ^ should this be multiplied by price multiplier??
     return payAmount
 
 def getSymmetry(symmetryRarities):

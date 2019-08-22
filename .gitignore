@@ -1,3 +1,10 @@
 __pycache__
 .env
 .DS_Store
+venv/
+*.gpickle
+*.gpickle.bak
+tmp/
+.ipynb_checkpoints/
+src/.ipynb_checkpoints/
+*.png

@@ -13,17 +13,11 @@ def miner_hashrate():
     return norm.rvs(loc=30, scale=5) #150/sec with standard deviation of 50
 
 market_settings = {
-    'bc-reserveRatio': .75,  # bonding curve reserve ratio (connector weight)
-    'bc-virtualBalance': 10,  # bonding curve virtual balance
-    'bc-virtualSupply': 10000,   # bonding curve virtual supply  
-    'priceMultiplier': 10,   # used to calculate cost to keep (multiplied by reward amt + base price)
-    'base-price': 1,         # minimum price to keep any clover
-    'payMultiplier': 0.05, #327,    # used to calculate reward (multiplied by ratio of rarity)
-    'initialSpend': 45,       # initial spend in ETH
+    'initialSpend': 32,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
     'initial_players': 20,
     'initial_miners': 1,
-    'register_clover_cost_in_eth': 0.001313,
+    'register_clover_cost_in_eth': 0.004,
     'add_to_market_cost_in_eth': 0.00054,
     'buy_from_market_cost_in_eth': 0.002805,
     'sell_coins_cost_in_eth': 0.001012,
@@ -81,6 +75,15 @@ initial_conditions = {
             'x0Sym': 223 + 4 + 5,              # total x = 0 symmetries
             'xySym': 1009 + 21 + 4,             # total x = y symmetries
             'xnySym': 1154 + 21 + 4,            # total x = -y symmetries
+        },
+        'numBankClovers': 0,
+        'numPlayerClovers': 0,
+        'timestepStats': {
+            'cloversKept': 0,
+            'cloversReleased': 0,
+            'cloversTraded': 0,
+            'cloversBoughtFromBank': 0,
+            'cloversListedByPlayers': 0,
         },
         'clovers': [],
         'players': [],
