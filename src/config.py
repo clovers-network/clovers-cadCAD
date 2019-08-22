@@ -69,12 +69,12 @@ initial_conditions = {
         'bc-balance': 0,         # bonding curve collateral balance (ETH)
         'bc-totalSupply': 0,     # clubToken totalSupply
         'symmetries': {
-            'hasSymmetry': 1130,               # total number of symmetrical clovers
-            'rotSym': 39 + 4 + 4 + 13,         # total rotational symmetries
-            'y0Sym': 113 + 4 + 4,              # total y = 0 symmetries
-            'x0Sym': 112 + 4 + 4,              # total x = 0 symmetries
-            'xySym': 394 + 13 + 4,             # total x = y symmetries
-            'xnySym': 450 + 13 + 4,            # total x = -y symmetries
+            'hasSymmetry': 2705,               # total number of symmetrical clovers
+            'rotSym': 72 + 4 + 5 + 21,         # total rotational symmetries
+            'y0Sym': 221 + 4 + 5,              # total y = 0 symmetries
+            'x0Sym': 223 + 4 + 5,              # total x = 0 symmetries
+            'xySym': 1009 + 21 + 4,             # total x = y symmetries
+            'xnySym': 1154 + 21 + 4,            # total x = -y symmetries
         },
         'numBankClovers': 0,
         'numPlayerClovers': 0,
@@ -94,7 +94,7 @@ initial_conditions = {
 }
 
 def hasSymmetry(cloverCount):
-    base = 0.0001
+    base = 0.0002
 #     if (cloverCount > 1000):
 #         base = 0.00001
 #     if (cloverCount > 10000):
@@ -107,14 +107,14 @@ rarity = {
     'pretty':      0.01, # 1/100 clovers are "pretty"
     'rarePretty':  0.3, # 30/100 rare clovers are "pretty"k
     'symmetries': {
-        'rotSym':      39/1130,
-        'x0Sym':       112/1130,
-        'y0Sym':       113/1130,
-        'xySym':       394/1130,
-        'xnySym':      450/1130,
-        'diagRotSym':  13/1130,
-        'perpRotSym':  4/1130,
-        'allSym':      4/1130
+        'rotSym':      72/2705,
+        'x0Sym':       223/2705,
+        'y0Sym':       221/2705,
+        'xySym':       1009/2705,
+        'xnySym':      1154/2705,
+        'diagRotSym':  21/2705,
+        'perpRotSym':  5/2705,
+        'allSym':      4/2705
         # DATA FOR CALCULATING RARITIES:
         # total symms: 1130
         # total rot: 61 - 4 - 14 - 4 = 39
