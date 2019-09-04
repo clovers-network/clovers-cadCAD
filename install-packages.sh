@@ -1,3 +1,4 @@
+#!/bin/bash
 source .env
 pip install --extra-index-url https://$GEMFURY_TOKEN:@repo.fury.io/blockscience/ -r requirements.txt
 

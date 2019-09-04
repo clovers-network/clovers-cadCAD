@@ -63,7 +63,7 @@ def genuid(g):
     return id
 
 def getObjectiveValue(s, clover, market_settings, step, params):
-    g = s['network']
+    # g = s['network'] # unused var
     syms = s['symmetries']
     fresh = 1
     if (step - clover['step'] >= market_settings['old_clover_interval'] ):
@@ -84,7 +84,7 @@ def getObjectiveValue(s, clover, market_settings, step, params):
 
 def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params):
     cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step, params)
-    foo = [1, 2, 3]
+    # foo = [1, 2, 3] # unused var
 #     TODO: add back when time isn't an issue
 #     numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
     stdDev = market_settings['stdDev']
@@ -202,14 +202,52 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
 def initialize(params, market_settings, conditions):
     def init_ts(s):
         return calculatePurchaseReturn(s, params, market_settings["initialSpend"])
-
-    conditions['bc-balance'] = market_settings["initialSpend"]
-    conditions['bc-totalSupply'] = init_ts(conditions)
+    if conditions['bc-balance'] == 0:
+        conditions['bc-balance'] = market_settings["initialSpend"]
+        conditions['bc-totalSupply'] = init_ts(conditions)
     (conditions['network'], conditions['players'], conditions['miners'], conditions['bank']) = initialize_network(market_settings)
-    conditions['clovers'] = []
+    conditions = initialize_clovers(conditions, market_settings)
     state = {"s" : conditions}
     return state
 
+def initialize_clovers(s, market_settings):
+    s['clovers'] = []
+    def hasSymmetry(cloverCount):
+        return 1
+    # don't think i can import the rarity from the config can i?
+    rarity = {
+        'hasSymmetry': hasSymmetry, # at initialization 100% of clovers have symmetry (until we figure out asymms in the model)
+        'claimRate':   0.01,
+        'pretty':      0.01, # 1/100 clovers are "pretty"
+        'rarePretty':  0.3, # 30/100 rare clovers are "pretty"k
+        'symmetries': {
+            'rotSym':      72/2705,
+            'x0Sym':       223/2705,
+            'y0Sym':       221/2705,
+            'xySym':       1009/2705,
+            'xnySym':      1154/2705,
+            'diagRotSym':  21/2705,
+            'perpRotSym':  5/2705,
+            'allSym':      4/2705
+        }
+    }
+
+    rarity['hasSymmetry'] = hasSymmetry
+
+    bankClovers = mine_clovers(s['numBankClovers'], 0, False, rarity, market_settings)
+    for clover in bankClovers:
+        cloverId = add_clover_to_network(s, clover, 10)
+        set_owner(s['network'], s['bank'], cloverId)
+    playerClovers = mine_clovers(s['numPlayerClovers'], 0, False, rarity, market_settings)
+    for clover in playerClovers:
+        price = 0
+        if (rand() < s['initial-playerCloversForSale'] / s['numPlayerClovers']):
+            price = getCloverPrice(s, clover, market_settings, 0)
+
+        cloverId = add_clover_to_network(s, clover, price)
+        userId = random.choice(s['players'])
+        set_owner(s['network'], userId, cloverId)
+    return s
 
 def seed_network(n, m, g, market_settings):
     players = []
@@ -410,7 +448,46 @@ def getSymmetry(symmetryRarities):
     
     for i in range(1,len(symmetryRarities)+1):
         if rand_val <= numpy.sum(list(symmetryRarities.values())[0:i]):
-            break;
+            break
     
     return list(symmetryRarities.keys())[i-1]
 
+
+
+
+# mines n clovers, and returns only the rare ones, with rarity
+def mine_clovers(num_hashes, step, cloverCount, rarity, market_settings):
+    possibleSyms = ['rotSym', 'y0Sym', 'x0Sym', 'xySym', 'xnySym']
+    # first determine how many rare clovers are found with the given hashrate
+    rare_clovers = num_hashes*rarity['hasSymmetry'](cloverCount)
+    rare_clovers = (1 if rand() < (rare_clovers - math.floor(rare_clovers)) else 0) + math.floor(rare_clovers)
+    
+    clovers = []
+    
+    # for each rare clover, determine its symmetries and prettiness from utility function
+    # and return them as an array 
+    for i in range(rare_clovers):
+        
+        clover = {}
+        clover['step'] = step
+
+        symmetry = getSymmetry(rarity['symmetries'])
+        for sym in possibleSyms:
+            clover[sym] = False
+    
+        if symmetry in possibleSyms:
+            clover[symmetry] = True
+        else:
+            if sym == 'diagRotSym':
+                clover['xySym'] = clover['xnySym'] = clover['rotSym'] = True
+            if sym == 'perpRotSym':
+                clover['x0Sym'] = clover['y0Sym'] = clover['rotSym'] = True
+            if sym == 'allSym':
+                for sym in possibleSyms:
+                    clover[sym] = True
+        
+        clover['pretty'] = rand() + market_settings['pretty_multiplier'] if (rand() < rarity['rarePretty']) else 0
+        clover['hasSymmetry'] = True
+        clovers.append(clover)
+    
+    return clovers

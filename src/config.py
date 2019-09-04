@@ -12,16 +12,19 @@ def desired_for_sale_ratio():
 def miner_hashrate():
     return norm.rvs(loc=30, scale=5) #150/sec with standard deviation of 50
 
+gasPrice = 5 #Gwei
+
 market_settings = {
-    'initialSpend': 32,       # initial spend in ETH
+    'initialSpend': 0,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
-    'initial_players': 20,
-    'initial_miners': 1,
-    'register_clover_cost_in_eth': 0.004,
-    'add_to_market_cost_in_eth': 0.00054,
-    'buy_from_market_cost_in_eth': 0.002805,
-    'sell_coins_cost_in_eth': 0.001012,
-    'buy_coins_cost_in_eth': 0.001015,
+    'initial_players': 400,
+    'initial_miners': 10,
+    'gasPrice': gasPrice, #Gwei
+    'register_clover_cost_in_eth': (0.000286774 + 0.000521) * gasPrice, # cost multiplied average gas cost
+    'add_to_market_cost_in_eth': 0.000102 * gasPrice,
+    'buy_from_market_cost_in_eth': 0.000277 * gasPrice,
+    'sell_coins_cost_in_eth': 0.000099 * gasPrice,
+    'buy_coins_cost_in_eth': 0.000091 * gasPrice,
     'miner_cash_out_threshold': 0.01,
     'hourly_attention_rate_for_buying_clovers': 25,
     'miner_pct_online': 1, # miner is online 100% of the time
@@ -38,8 +41,8 @@ market_settings = {
     'new_clover_interval': 1, # if the clover is newer than 1 timestep it is fresh
     'new_clover_fresh_factor': 1.1, # increases the value by 10%
     'increase_participants_every_x_steps': 24,
-    'player_multiplier': 0.1,
-    'miner_multiplier': 0.1,
+    'player_multiplier': 0.01,
+    'miner_multiplier': 0.01,
 }
 
 disaster_ideal = {
@@ -66,18 +69,19 @@ disaster_ideal = {
 initial_conditions = {
     's': {
         'previous-timesteps': 0,
-        'bc-balance': 0,         # bonding curve collateral balance (ETH)
-        'bc-totalSupply': 0,     # clubToken totalSupply
+        'bc-balance': 43.43114,         # bonding curve collateral balance (ETH)
+        'bc-totalSupply': 34219,     # cloverCoin totalSupply
         'symmetries': {
-            'hasSymmetry': 2705,               # total number of symmetrical clovers
-            'rotSym': 72 + 4 + 5 + 21,         # total rotational symmetries
-            'y0Sym': 221 + 4 + 5,              # total y = 0 symmetries
-            'x0Sym': 223 + 4 + 5,              # total x = 0 symmetries
-            'xySym': 1009 + 21 + 4,             # total x = y symmetries
-            'xnySym': 1154 + 21 + 4,            # total x = -y symmetries
+            'hasSymmetry': 22665,               # total number of symmetrical clovers
+            'rotSym': 4591,         # total rotational symmetries
+            'y0Sym': 4823,              # total y = 0 symmetries
+            'x0Sym': 4931,              # total x = 0 symmetries
+            'xySym': 6313,             # total x = y symmetries
+            'xnySym': 6417,            # total x = -y symmetries
         },
-        'numBankClovers': 0,
-        'numPlayerClovers': 0,
+        'numBankClovers': 17179,
+        'numPlayerClovers': 17040,
+        'initial-playerCloversForSale': 2885,
         'timestepStats': {
             'cloversKept': 0,
             'cloversReleased': 0,

@@ -19,43 +19,6 @@ def participant_pool_policy(params, step, sL, s):
 def getClaim():
     return rand() < rarity['claimRate']
 
-# mines n clovers, and returns only the rare ones, with rarity
-def mine_clovers(num_hashes, step, cloverCount):
-    possibleSyms = ['rotSym', 'y0Sym', 'x0Sym', 'xySym', 'xnySym']
-    
-    # first determine how many rare clovers are found with the given hashrate
-    rare_clovers = num_hashes*rarity['hasSymmetry'](cloverCount)
-    rare_clovers = (1 if rand() < (rare_clovers - math.floor(rare_clovers)) else 0) + math.floor(rare_clovers)
-    
-    clovers = []
-    
-    # for each rare clover, determine its symmetries and prettiness from utility function
-    # and return them as an array 
-    for i in range(rare_clovers):
-        
-        clover = {}
-        clover['step'] = step
-
-        symmetry = utils.getSymmetry(rarity['symmetries'])
-        for sym in possibleSyms:
-            clover[sym] = False
-    
-        if symmetry in possibleSyms:
-            clover[symmetry] = True
-        else:
-            if sym == 'diagRotSym':
-                clovers['xySym'] = clovers['xnySym'] = clovers['rotSym'] = True
-            if sym == 'perpRotSym':
-                clovers['x0Sym'] = clovers['y0Sym'] = clovers['rotSym'] = True
-            if sym == 'allSym':
-                for sym in possibleSyms:
-                    clover[sym] = True
-        
-        clover['pretty'] = rand() + market_settings['pretty_multiplier'] if (rand() < rarity['rarePretty']) else 0
-        clover['hasSymmetry'] = True
-        clovers.append(clover)
-    
-    return clovers
 
 def player_active():
     awake_likelihood = 0.6  # 60% probability of player being awake
@@ -88,7 +51,7 @@ def player_policy(params, step, sL, s):
                          * player['player_active_percent']
             
             # returns an array of all rare clovers mined during the period
-            rare_clovers = mine_clovers(num_hashes, timestep, cloverCount)
+            rare_clovers = utils.mine_clovers(num_hashes, timestep, cloverCount, rarity, market_settings)
             
             # TODO: add function for generating non-sym pretty clovers via UI            
             for clover in rare_clovers:
@@ -110,10 +73,10 @@ def miner_policy(params, step, sL, s):
         miner_pct_online = market_settings['miner_pct_online'] # miner always online
         hash_rate = miner['hashrate']
         is_active = miner['is_active']
-        
+
         num_hashes = (hash_rate*60*60)*miner_pct_online*is_active
         
-        clovers = mine_clovers(num_hashes, timestep, cloverCount)
+        clovers = utils.mine_clovers(num_hashes, timestep, cloverCount, rarity, market_settings)
         
         for clover in clovers:
             clover_intention = {
