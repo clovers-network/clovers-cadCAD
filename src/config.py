@@ -28,6 +28,7 @@ market_settings = {
     'miner_cash_out_threshold': 0.01,
     'hourly_attention_rate_for_buying_clovers': 25,
     'miner_pct_online': 1, # miner is online 100% of the time
+    'player_pct_online': 0.1, # miner is online 100% of the time
     'miner_hashrate': miner_hashrate,
     'pct_miner_is_active': 0.99, # when online, what pct are they actively mining
     'pct_player_is_active': 0.7, # when online, what pct are they actively mining

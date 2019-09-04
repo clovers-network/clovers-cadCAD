@@ -19,7 +19,7 @@ def participant_pool_policy(params, step, sL, s):
 def getClaim():
     return rand() < rarity['claimRate']
 
-
+# TODO: Move this to config
 def player_active():
     awake_likelihood = 0.6  # 60% probability of player being awake
     active_likelihood = 0.05 # 3 hours of play in 7 day week

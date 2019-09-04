@@ -206,11 +206,11 @@ def initialize(params, market_settings, conditions):
         conditions['bc-balance'] = market_settings["initialSpend"]
         conditions['bc-totalSupply'] = init_ts(conditions)
     (conditions['network'], conditions['players'], conditions['miners'], conditions['bank']) = initialize_network(market_settings)
-    conditions = initialize_clovers(conditions, market_settings)
+    conditions = initialize_clovers(conditions, market_settings, params)
     state = {"s" : conditions}
     return state
 
-def initialize_clovers(s, market_settings):
+def initialize_clovers(s, market_settings, params):
     s['clovers'] = []
     def hasSymmetry(cloverCount):
         return 1
@@ -242,7 +242,7 @@ def initialize_clovers(s, market_settings):
     for clover in playerClovers:
         price = 0
         if (rand() < s['initial-playerCloversForSale'] / s['numPlayerClovers']):
-            price = getCloverPrice(s, clover, market_settings, 0)
+            price = getCloverPrice(s, clover, market_settings, params)
 
         cloverId = add_clover_to_network(s, clover, price)
         userId = random.choice(s['players'])
@@ -445,8 +445,10 @@ def getCloverPrice(s, clover, market_settings, params):
 
 def getSymmetry(symmetryRarities):
     rand_val = rand()
-    
+    # print('len(symmetryRarities)+1')
+    # print(len(symmetryRarities)+1)
     for i in range(1,len(symmetryRarities)+1):
+        # print(symmetryRarities.values())
         if rand_val <= numpy.sum(list(symmetryRarities.values())[0:i]):
             break
     
