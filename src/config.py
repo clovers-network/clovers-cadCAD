@@ -17,8 +17,8 @@ gasPrice = 5 #Gwei
 market_settings = {
     'initialSpend': 0,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
-    'initial_players': 400,
-    'initial_miners': 10,
+    'initial_players': 200,
+    'initial_miners': 20,
     'gasPrice': gasPrice, #Gwei
     'register_clover_cost_in_eth': (0.000286774 + 0.000521) * gasPrice, # cost multiplied average gas cost
     'add_to_market_cost_in_eth': 0.000102 * gasPrice,
