@@ -21,8 +21,8 @@ def getClaim():
 
 # TODO: Move this to config
 def player_active():
-    awake_likelihood = 0.6  # 60% probability of player being awake
-    active_likelihood = 0.05 # 3 hours of play in 7 day week
+    awake_likelihood = 0.6  # 14.4 hours awake per day
+    active_likelihood = 0.005 # 1/200 - one out of every 200 users active
     return rand() < (awake_likelihood*active_likelihood)
 
 

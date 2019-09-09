@@ -2,6 +2,7 @@ import utils
 import itertools
 from config import market_settings
 from functools import reduce
+from scipy.stats import norm
 import json
 import os.path
 
@@ -20,7 +21,8 @@ def initialize(params, step, sL, s, _input):
     #print("Paramset: %s" % params)
     #print("    timestep", s['timestep'])
     #print("    clovers", len(s['s']['clovers']))
-
+    if (step % 10 == 0):
+        print('step', step)
     if (s['timestep'] == 0):
         filename = utils.network_filename(params)
         if os.path.exists(filename):
@@ -29,6 +31,12 @@ def initialize(params, step, sL, s, _input):
         s = utils.initialize(params, market_settings, s['s'])
         utils.saveNetwork(s['s']['network'], params)
         s['s']['network'] = None
+
+    s['s']['gasPrice'] = s['s']['gasPrice'] + norm.rvs(loc=0,scale=5)
+    if (s['s']['gasPrice'] < 1):
+        s['s']['gasPrice'] = 1
+    if (s['s']['gasPrice'] > 20):
+        s['s']['gasPrice'] = 20
 
     # reset timestepStats, as these are counters which should be reset
     # at every new timestep
@@ -99,7 +107,7 @@ def processMinerCashOuts(params, state, marketSettings):
     for node in minerNodes:
         miner = g.nodes[node]
         cash_out_amount = utils.calculateCashout(state, params, miner['supply']) # returns ETH
-        gas_fee = marketSettings['sell_coins_cost_in_eth']
+        gas_fee = marketSettings['sell_coins_cost_in_eth'] * state['gasPrice']
 
         if (cash_out_amount - gas_fee) > miner['cash_out_threshold']:
             miner['eth-earned'] += cash_out_amount

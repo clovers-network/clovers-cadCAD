@@ -39,8 +39,8 @@ def to_df(raw_result, params):
         new_cols['cloversBoughtFromBank'] = s['timestepStats']['cloversBoughtFromBank']
         new_cols['cloversListedByPlayers'] = s['timestepStats']['cloversListedByPlayers']
 
-        new_cols['cost-to-mine'] = market_settings['register_clover_cost_in_eth']
-        new_cols['cost-to-mine-usd'] = market_settings['register_clover_cost_in_eth'] * 300
+        new_cols['cost-to-mine'] = market_settings['register_clover_cost_in_eth'] * s['gasPrice']
+        new_cols['cost-to-mine-usd'] = market_settings['register_clover_cost_in_eth'] * 300  * s['gasPrice']
         new_cols['miners'] = len(miners)
         new_cols['players'] = len(players)
         new_cols['clovers'] = len(clovers)
@@ -115,7 +115,7 @@ def make_graph(results, graph, graphsize=(15,8), monte_run=0, save=False, paramT
 
 def clovers_metrics_graph(df, params, axs):
     title = "Clovers Kept & Released vs Coin Price %s" % params
-    return df.plot('timestep', ['cloversKept', 'cloversReleased', 'coin-price'], secondary_y=['coin-price'], ax=axs, title=title)
+    return df.plot('timestep', ['cloversKept', 'cloversReleased', 'clovers', 'coin-price'], secondary_y=['coin-price'], ax=axs, title=title)
 
 
 def clovers_traded_graph(df, params, axs):
@@ -142,6 +142,10 @@ def rewards_per_sym_graph(df, params, axs):
 def rewards_per_sym_eth_graph(df, params, axs):
     title = "Rewards per Sym (ETH) vs Mining Cost %s" % params
     return df.plot('timestep', ['reward-eth-rotSym', 'reward-eth-x0Sym', 'reward-eth-y0Sym', 'reward-eth-xySym', 'reward-eth-xnySym', 'cost-to-mine'], ax=axs, title=title)
+
+def gas_price(df, params, axs):
+    title = "GasPrice"
+    return df.plot('timestep', ['gasPrice'], ax=axs, title=title)
 
 def bc_slope_graph(df, params, axs):
     title = "Slope of Bonding Curve Graph"
@@ -217,18 +221,3 @@ def make_param_runs_graph(results, param_keys, col_names_to_graph, graphsize=(15
         ax = axs if num_graphs == 1 else axs[i]
 
         df.groupby('params')[col_name].plot(legend=True, ax=ax, title=col_name)
-
-def make_graph(results, graph, graphsize=(15,8), monte_run=0, save=False, paramTitle=False):
-    num_results = len(results)
-    fig = plt.figure(figsize=(graphsize[0]*num_results, graphsize[1]))
-    axs = fig.subplots(1, num_results)
-
-    for (i, res) in enumerate(results):
-
-        params = res['simulation_parameters']['M']
-
-
-        df = to_df(res['result'], params)
-        pText = params if paramTitle else ""
-
-        graph(df, pText, axs) if num_results == 1 else graph(df, pText, axs[i])

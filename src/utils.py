@@ -180,12 +180,12 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
             s['bc-totalSupply'] += price
             s['bc-balance'] += costToBuy
             user['eth-spent'] += costToBuy
-            user['eth-spent'] += market_settings['buy_coins_cost_in_eth']
-        user['eth-spent'] += market_settings['register_clover_cost_in_eth']
+            user['eth-spent'] += market_settings['buy_coins_cost_in_eth'] * s['gasPrice']
+        user['eth-spent'] += market_settings['register_clover_cost_in_eth'] * s['gasPrice']
         user['supply'] -= price
         s['bc-totalSupply'] -= price
     else:
-        if (rewardInEth > market_settings['register_clover_cost_in_eth']):
+        if (rewardInEth > (market_settings['register_clover_cost_in_eth'] * s['gasPrice'])):
             g = set_owner(g, bankId, cloverId)
             s['numBankClovers'] += 1
             s['timestepStats']['cloversReleased'] += 1
@@ -193,7 +193,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
             g = set_price(g, cloverId, listingPrice)
             user['supply'] += reward
             s['bc-totalSupply'] += reward
-            user['eth-spent'] += market_settings['register_clover_cost_in_eth']
+            user['eth-spent'] += market_settings['register_clover_cost_in_eth'] * s['gasPrice']
         else:
             s = unprocessSymmetries(s, clover)
             delete_clover(s, cloverId)
@@ -206,9 +206,22 @@ def initialize(params, market_settings, conditions):
         conditions['bc-balance'] = market_settings["initialSpend"]
         conditions['bc-totalSupply'] = init_ts(conditions)
     (conditions['network'], conditions['players'], conditions['miners'], conditions['bank']) = initialize_network(market_settings)
+    
     conditions = initialize_clovers(conditions, market_settings, params)
+
+    initialize_balances(conditions)
+
     state = {"s" : conditions}
     return state
+
+def initialize_balances(s):
+    tokens_to_distribute = s['bc-totalSupply'] - s['foundation-tokens']
+    average = tokens_to_distribute / (len(s['players']) + len(s['miners']))
+    for p in s['players']:
+        s['network'].nodes[p]['balance'] = average
+    for m in s['miners']:
+        s['network'].nodes[m]['balance'] = average
+
 
 def initialize_clovers(s, market_settings, params):
     s['clovers'] = []
@@ -257,7 +270,7 @@ def seed_network(n, m, g, market_settings):
         g.nodes[nodeId]['type'] = "player"
         
         # randomize player's hashrate on
-        # a normal distribution centered on 15, stddev=2
+        # a normal distribution centesupplyred on 15, stddev=2
         g.nodes[nodeId]['hashrate'] = market_settings['miner_hashrate']()
         g.nodes[nodeId]['player_active_percent'] = market_settings['pct_player_is_active']
         g.nodes[nodeId]['supply'] = 0

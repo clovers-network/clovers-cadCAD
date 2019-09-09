@@ -12,19 +12,17 @@ def desired_for_sale_ratio():
 def miner_hashrate():
     return norm.rvs(loc=30, scale=5) #150/sec with standard deviation of 50
 
-gasPrice = 5 #Gwei
 
 market_settings = {
     'initialSpend': 0,       # initial spend in ETH
     'stdDev': 3,               # standard deviation of subjective price to objective price
     'initial_players': 200,
     'initial_miners': 20,
-    'gasPrice': gasPrice, #Gwei
-    'register_clover_cost_in_eth': (0.000286774 + 0.000521) * gasPrice, # cost multiplied average gas cost
-    'add_to_market_cost_in_eth': 0.000102 * gasPrice,
-    'buy_from_market_cost_in_eth': 0.000277 * gasPrice,
-    'sell_coins_cost_in_eth': 0.000099 * gasPrice,
-    'buy_coins_cost_in_eth': 0.000091 * gasPrice,
+    'register_clover_cost_in_eth': (0.000286774 + 0.000521), # cost multiplied average gas cost
+    'add_to_market_cost_in_eth': 0.000102,
+    'buy_from_market_cost_in_eth': 0.000277,
+    'sell_coins_cost_in_eth': 0.000099,
+    'buy_coins_cost_in_eth': 0.000091,
     'miner_cash_out_threshold': 0.01,
     'hourly_attention_rate_for_buying_clovers': 25,
     'miner_pct_online': 1, # miner is online 100% of the time
@@ -46,32 +44,12 @@ market_settings = {
     'miner_multiplier': 0.01,
 }
 
-disaster_ideal = {
-    "s": {
-        "previous-timesteps": 0, 
-        "bc-balance": 0.004895516583783437,
-        "bc-totalSupply": 23251.366969915605,
-        "symmetries": {
-            "hasSymmetry": 19651,
-            "rotSym": 3940,
-            "y0Sym": 3940,
-            "x0Sym": 3940,
-            "xySym": 3940,
-            "xnySym": 3940
-        },
-        'clovers': [],
-        'players': [],
-        'miners': [],
-        'bank': None,
-        'network': None
-    }
-}
-
 initial_conditions = {
     's': {
         'previous-timesteps': 0,
         'bc-balance': 43.43114,         # bonding curve collateral balance (ETH)
         'bc-totalSupply': 34219,     # cloverCoin totalSupply
+        'foundation-tokens': 28827, # tokens owned by the "foundation" as a result of initial buy
         'symmetries': {
             'hasSymmetry': 22665,               # total number of symmetrical clovers
             'rotSym': 4591,         # total rotational symmetries
@@ -80,8 +58,9 @@ initial_conditions = {
             'xySym': 6313,             # total x = y symmetries
             'xnySym': 6417,            # total x = -y symmetries
         },
+        'gasPrice': 7, #Gwei
         'numBankClovers': 17179,
-        'numPlayerClovers': 17040,
+        'numPlayerClovers': 6163,
         'initial-playerCloversForSale': 2885,
         'timestepStats': {
             'cloversKept': 0,
