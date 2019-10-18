@@ -7,6 +7,7 @@ import utils
 import networkx as nx
 
 def participant_pool_policy(params, step, sL, s):
+    # print('participant_pool_policy')
     policy = {}
     playerCount = len(s['s']['players'])
     minerCount = len(s['s']['miners'])
@@ -14,6 +15,7 @@ def participant_pool_policy(params, step, sL, s):
     if (timestep != 0 and timestep % market_settings['increase_participants_every_x_steps'] == 0):
         policy['new-players'] = math.ceil(playerCount * market_settings['player_multiplier'])
         policy['new-miners'] = math.ceil(minerCount * market_settings['miner_multiplier'])
+    # print('end-participant_pool_policy')
     return policy
 
 def getClaim():
@@ -27,6 +29,7 @@ def player_active():
 
 
 def player_policy(params, step, sL, s):
+    # print('player_policy')
     # params = params[0]
     active_players = []
     clover_intentions = []
@@ -57,10 +60,12 @@ def player_policy(params, step, sL, s):
             for clover in rare_clovers:
                 clover_intentions.append({"user": node, "clover": clover})
     shuffle(clover_intentions)
+    # print('end-player_policy')
     return {'clover_intentions': clover_intentions, 'active_players': active_players}
     
 
 def miner_policy(params, step, sL, s):
+    # print('miner_policy')
     # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
@@ -87,10 +92,12 @@ def miner_policy(params, step, sL, s):
             clover_intentions.append(clover_intention)
 
     shuffle(clover_intentions)
+    # print('end-miner_policy')
     return {'clover_intentions': clover_intentions}
 
 
 def market_activity_policy(params, step, sL, s):
+    # print('market_activity_policy')
     # params = params[0]
     timestep = s['timestep']
     s = s['s'] # wrap state for backwards compatibility
@@ -126,8 +133,11 @@ def market_activity_policy(params, step, sL, s):
 
     # shuffle the clovers potentially for sale
     shuffle(all_clovers_for_sale)
+    
+    gas_fee = market_settings['register_clover_cost_in_eth'] * s['gasPrice']
 
     def get_buys(playerId, all_clovers_for_sale):
+        # print('get_buys')
         to_buy = []
         hourly_attention_rate = math.floor(market_settings['hourly_attention_rate_for_buying_clovers'])
         sample_size = hourly_attention_rate if len(all_clovers_for_sale) > hourly_attention_rate else len(all_clovers_for_sale)
@@ -135,6 +145,7 @@ def market_activity_policy(params, step, sL, s):
         for random_clover_id in random_clovers:
             random_clover = g.nodes[random_clover_id]
             price = random_clover['price']
+            price = price + gas_fee
             subjectivePrice = utils.getSubjectiveValue(s, random_clover_id, random_clover, playerId, market_settings, timestep, params)
             market_buying_propensity = g.nodes[playerId]['market_buying_propensity']
             _rand = rand()
@@ -146,6 +157,7 @@ def market_activity_policy(params, step, sL, s):
                     'cloverId': random_clover_id,
                     'intent': 'toBuy'
                 })
+        # print('end-get_buys')
         return to_buy
     
     # for each player
@@ -171,6 +183,7 @@ def market_activity_policy(params, step, sL, s):
     # : (
     
     #     shuffle(clover_intentions)
+    # print('end-market_activity_policy')
     return {'market_intentions': handleClovers}
             
  
