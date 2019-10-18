@@ -115,7 +115,7 @@ def make_graph(results, graph, graphsize=(15,8), monte_run=0, save=False, paramT
 
 def clovers_metrics_graph(df, params, axs):
     title = "Clovers Kept & Released vs Coin Price %s" % params
-    return df.plot('timestep', ['cloversKept', 'cloversReleased', 'clovers', 'coin-price'], secondary_y=['coin-price'], ax=axs, title=title)
+    return df.plot('timestep', ['cloversKept', 'cloversReleased', 'coin-price'], secondary_y=['coin-price'], ax=axs, title=title)
 
 
 def clovers_traded_graph(df, params, axs):

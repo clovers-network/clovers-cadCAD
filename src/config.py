@@ -15,7 +15,7 @@ def miner_hashrate():
 
 market_settings = {
     'initialSpend': 0,       # initial spend in ETH
-    'stdDev': 3,               # standard deviation of subjective price to objective price
+    'stdDev': 1,               # standard deviation of subjective price to objective price
     'initial_players': 200,
     'initial_miners': 20,
     'register_clover_cost_in_eth': (0.000286774 + 0.000521), # cost multiplied average gas cost

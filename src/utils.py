@@ -22,18 +22,24 @@ def savefig(fig, previousRuns, num_timesteps, name):
     fig.savefig(tempdir + '/' + 'from-' + str(previousRuns) + '-to-' + str(previousRuns + num_timesteps) + name + '.png')
 
 def getNetwork(params):
+    # print("getNetwork")
     file_name = network_filename(params)
     if  os.path.exists(file_name):
         g = nx.read_gpickle(file_name)
     else:
         g = nx.DiGraph()
+    # print("gend-etNetwork")
     return g
 
 def saveNetwork(g, params):
+    # print("saveNetwork")
     file_name = network_filename(params)
+    # print("aftersavenetwork--------1")
     if  os.path.exists(file_name):
         shutil.copy(file_name, file_name + '.bak')
+    # print("aftersavenetwork--------2")
     nx.write_gpickle(g, file_name)
+    # print("aftersavenetwork--------3")
 #     _g = toDICT(g)
 #     with open('./network.json', 'w+') as f:  # writing JSON object
 #         json.dump(_g, f)
@@ -84,7 +90,6 @@ def getObjectiveValue(s, clover, market_settings, step, params):
 
 def getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params):
     cloverObjectiveValue = getObjectiveValue(s, clover, market_settings, step, params)
-    # foo = [1, 2, 3] # unused var
 #     TODO: add back when time isn't an issue
 #     numpy.random.seed([int(userId/1000000),int(cloverId/1000000)])
     stdDev = market_settings['stdDev']
@@ -102,6 +107,7 @@ def unprocessSymmetries(s, clover):
     return s
 
 def processMarketIntentions(s, market_intention, market_settings, step, params):
+    # print('begin-processMarketIntentions')
     g = s['network']
     
     playerId = market_intention['playerId']
@@ -145,6 +151,7 @@ def processMarketIntentions(s, market_intention, market_settings, step, params):
         s['timestepStats']['cloversListedByPlayers'] += 1
         price = getSubjectiveValue(s, cloverId, clover, playerId, market_settings, step, params)
         g = set_price(g, cloverId, price)
+    # print('end-processMarketIntentions')
     return s
 
 
@@ -160,7 +167,9 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
 
     subjectivePrice = getSubjectiveValue(s, cloverId, clover, userId, market_settings, step, params)
     price = getCloverPrice(s, clover, market_settings, params)
-    
+    gas_fee = market_settings['register_clover_cost_in_eth'] * s['gasPrice']
+    price = price + gas_fee
+
     if (user['type'] == 'miner'):
         clover_intention['intention'] = 'sell'
     else:
@@ -200,6 +209,7 @@ def processBuysAndSells(s, clover_intention, market_settings, bankId, step, para
     return s
 
 def initialize(params, market_settings, conditions):
+    # print("initialize")
     def init_ts(s):
         return calculatePurchaseReturn(s, params, market_settings["initialSpend"])
     if conditions['bc-balance'] == 0:
@@ -215,6 +225,7 @@ def initialize(params, market_settings, conditions):
     return state
 
 def initialize_balances(s):
+    # print("initialize_balances")
     tokens_to_distribute = s['bc-totalSupply'] - s['foundation-tokens']
     average = tokens_to_distribute / (len(s['players']) + len(s['miners']))
     for p in s['players']:
@@ -224,6 +235,7 @@ def initialize_balances(s):
 
 
 def initialize_clovers(s, market_settings, params):
+    # print("initialize_clovers")
     s['clovers'] = []
     def hasSymmetry(cloverCount):
         return 1
@@ -263,6 +275,7 @@ def initialize_clovers(s, market_settings, params):
     return s
 
 def seed_network(n, m, g, market_settings):
+    # print("seed_network")
     players = []
     for i in range(n):
         nodeId = genuid(g)
@@ -295,6 +308,7 @@ def seed_network(n, m, g, market_settings):
     return (g, players, miners)
 
 def initialize_network(market_settings):
+    # print("initialize_network")
     g = nx.DiGraph()
     
     (g, players, miners) = seed_network(market_settings['initial_players'], market_settings['initial_miners'], g, market_settings)
@@ -302,8 +316,6 @@ def initialize_network(market_settings):
     bank = genuid(g)
     g.add_node(bank)
     g.nodes[bank]['type'] = "bank"
-
-
     return (g, players, miners, bank)
 
 #helper functions
@@ -396,7 +408,7 @@ def getPower(CW):
     return 1 / CW -1
 
 def calculatePurchaseReturn(s, params, amount):
-    print(params)
+    # print(params)
     totalSupply = s['bc-totalSupply'] + params['bc-virtualSupply']
     collateral = s['bc-balance'] + params['bc-virtualBalance']
     CW = params["bc-reserveRatio"]
